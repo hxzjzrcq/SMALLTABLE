@@ -1,0 +1,45 @@
+{
+  "name": "smalltable",
+  "version": "0.5.6",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "npm run build:core && concurrently -k \"node --import tsx --watch src/server/index.ts\" \"vite --host 127.0.0.1\"",
+    "build": "npm run build:core && tsc --noEmit && vite build",
+    "start": "node --import tsx src/server/index.ts",
+    "test": "node --import tsx --test test/*.test.ts",
+    "check": "tsc --noEmit",
+    "format": "prettier --write src test scripts docs README.md package.json tsconfig.json vite.config.ts",
+    "build:core": "tsc -p packages/dndroll-core/tsconfig.json",
+    "test:stage": "node --import tsx --test test/dndroll-integration.test.ts test/mobile.test.ts test/notes.test.ts test/ui-stage.test.ts",
+    "password:reset": "node --import tsx scripts/password-reset.ts"
+  },
+  "dependencies": {
+    "@dndroll/core": "file:packages/dndroll-core",
+    "adm-zip": "^0.6.1",
+    "express": "^5.1.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "sharp": "^0.35.5",
+    "ws": "^8.18.3",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/jsdom": "^30.0.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^4.7.0",
+    "concurrently": "^9.2.0",
+    "jsdom": "^30.1.3",
+    "prettier": "^3.9.10",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vite": "^6.3.0"
+  }
+}

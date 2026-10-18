@@ -1,0 +1,13 @@
+{
+  "source": "DNDROLL-完整项目-v0.4.0-文档整理版(1).zip",
+  "version": "0.4.0",
+  "sourceSha256": {
+    "src/ability-display.ts": "16af85277281f2ceba441aaa21651df964927b91d4807f9caab8dc3fd1be5dd4",
+    "src/batch.ts": "58bedd571d1fed7d432c7ac6907709478918eb20f3460ac342241aa78ee008ee",
+    "src/catalog.ts": "e7ddbc540489b0ebca10c247a3a20bb74347f7166afc22b6febd52756d883840",
+    "src/dcc.ts": "37da30c4e93e55f6d5579864e2b124ce52a9a1803f3d3ad95418f6408d742b39",
+    "src/errors.ts": "f02ac8f732649e23b099ebd6fe7d851f484893cdc062cbe633723ee46478ee2b",
+    "src/index.ts": "2f0182060b81b3c8d81d356127a61f16c1866ef20edd6bb3e60fa2fc85d44bdd",
+    "src/types.ts": "d2ccdaf08b06e562858b1984f1c570c09ff5e721cb60af9b7f203f4a1da1ed7c"
+  }
+}

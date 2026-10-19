@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { DEFAULT_CAPABILITIES, type Capabilities } from './limits.js';
+export type { Capabilities } from './limits.js';
 export const SCHEMA_VERSION = 2 as const;
 export const bytes = (s: string) => new TextEncoder().encode(s).length;
 export const text = (max: number) => z.string().refine((s) => bytes(s) <= max, '文字超过字节上限');
@@ -85,44 +87,54 @@ export function sortInitiative(entries: InitiativeEntry[], ascending: boolean) {
     )
     .map(({ entry }) => entry);
 }
-export const roomSchema = z
-  .object({
-    schemaVersion: z.literal(SCHEMA_VERSION),
-    revision: z.number().int().nonnegative(),
-    map: mapSchema.nullable(),
-    grid: gridSchema,
-    tokens: z.array(tokenSchema).max(255),
-    names: z.array(text(128)).min(1).max(255),
-    rolls: z.array(rollSchema).max(255),
-    initiative: z.array(initiativeEntrySchema).max(255),
-    initiativeAscending: z.boolean(),
-    drawings: z.array(drawingSchema).max(255),
-  })
-  .strict()
-  .refine((s) => new Set(s.tokens.map((t) => t.id)).size === s.tokens.length, '棋子 ID 重复')
-  .refine(
-    (s) => new Set(s.initiative.map((t) => t.id)).size === s.initiative.length,
-    '先攻条目 ID 重复',
-  )
-  .refine((s) => new Set(s.drawings.map((t) => t.id)).size === s.drawings.length, '线条 ID 重复');
+export const createRoomSchema = (caps: Capabilities) =>
+  z
+    .object({
+      schemaVersion: z.literal(SCHEMA_VERSION),
+      revision: z.number().int().nonnegative(),
+      map: mapSchema
+        .extend({
+          width: z.number().int().positive().max(caps.mapEdge),
+          height: z.number().int().positive().max(caps.mapEdge),
+        })
+        .refine((m) => m.width * m.height <= caps.mapPixels, '地图像素超过上限')
+        .nullable(),
+      grid: gridSchema,
+      tokens: z.array(tokenSchema).max(caps.maxTokens),
+      names: z.array(text(128)).min(1).max(caps.maxNames),
+      rolls: z.array(rollSchema).max(caps.maxRolls),
+      initiative: z.array(initiativeEntrySchema).max(caps.maxInitiative),
+      initiativeAscending: z.boolean(),
+      drawings: z.array(drawingSchema).max(caps.maxDrawings),
+    })
+    .strict()
+    .refine((s) => new Set(s.tokens.map((t) => t.id)).size === s.tokens.length, '棋子 ID 重复')
+    .refine(
+      (s) => new Set(s.initiative.map((t) => t.id)).size === s.initiative.length,
+      '先攻条目 ID 重复',
+    )
+    .refine((s) => new Set(s.drawings.map((t) => t.id)).size === s.drawings.length, '线条 ID 重复');
+export const roomSchema = createRoomSchema(DEFAULT_CAPABILITIES);
 // Explicit migration: validate the old schema strictly before supplying new fields.
-const legacyRoomSchema = z
-  .object({ ...roomSchema.shape })
-  .omit({ initiative: true, initiativeAscending: true, drawings: true })
-  .strict()
-  .extend({ schemaVersion: z.literal(1) })
-  .refine((s) => new Set(s.tokens.map((t) => t.id)).size === s.tokens.length);
-export function parseRoom(input: unknown): Room {
+const legacyRoomSchema = (schema: ReturnType<typeof createRoomSchema>) =>
+  z
+    .object({ ...schema.shape })
+    .omit({ initiative: true, initiativeAscending: true, drawings: true })
+    .strict()
+    .extend({ schemaVersion: z.literal(1) })
+    .refine((s) => new Set(s.tokens.map((t) => t.id)).size === s.tokens.length);
+export function parseRoom(input: unknown, caps: Capabilities = DEFAULT_CAPABILITIES): Room {
+  const schema = createRoomSchema(caps);
   if (input && typeof input === 'object' && 'schemaVersion' in input && input.schemaVersion === 1) {
-    return roomSchema.parse({
-      ...legacyRoomSchema.parse(input),
+    return schema.parse({
+      ...legacyRoomSchema(schema).parse(input),
       schemaVersion: 2,
       initiative: [],
       initiativeAscending: false,
       drawings: [],
     });
   }
-  return roomSchema.parse(input);
+  return schema.parse(input);
 }
 export type Room = z.infer<typeof roomSchema>;
 export type View = Omit<Room, 'tokens'> & { tokens: PublicToken[] };
@@ -149,93 +161,83 @@ export const project = (room: Room, dm: boolean): View => ({
 });
 export const measure = (a: { x: number; y: number }, b: { x: number; y: number }, cell: number) =>
   Math.round(Math.hypot(b.x - a.x, b.y - a.y) / cell);
-export const commandSchema = z.discriminatedUnion('type', [
-  z
-    .object({
-      type: z.literal('initiative.put'),
-      entry: initiativeEntrySchema,
-      epoch: z.number().int().nonnegative(),
-    })
-    .strict(),
-  z
-    .object({
-      type: z.literal('initiative.delete'),
+export const createCommandSchema = (caps: Capabilities) =>
+  z.discriminatedUnion('type', [
+    z
+      .object({
+        type: z.literal('initiative.put'),
+        entry: initiativeEntrySchema,
+        epoch: z.number().int().nonnegative(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal('initiative.delete'),
+        id: z.string().uuid(),
+        epoch: z.number().int().nonnegative(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal('initiative.order'),
+        ascending: z.boolean(),
+        epoch: z.number().int().nonnegative(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal('drawing.add'),
+        drawing: drawingSchema,
+        epoch: z.number().int().nonnegative(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal('drawing.delete'),
+        id: z.string().uuid(),
+        epoch: z.number().int().nonnegative(),
+      })
+      .strict(),
+    z.object({ type: z.literal('drawing.clear'), epoch: z.number().int().nonnegative() }).strict(),
+    z.object({ type: z.literal('activity') }),
+    z.object({
+      type: z.literal('move'),
       id: z.string().uuid(),
+      x: coordinate,
+      y: coordinate,
+      final: z.boolean(),
       epoch: z.number().int().nonnegative(),
-    })
-    .strict(),
-  z
-    .object({
-      type: z.literal('initiative.order'),
-      ascending: z.boolean(),
-      epoch: z.number().int().nonnegative(),
-    })
-    .strict(),
-  z
-    .object({
-      type: z.literal('drawing.add'),
-      drawing: drawingSchema,
-      epoch: z.number().int().nonnegative(),
-    })
-    .strict(),
-  z
-    .object({
-      type: z.literal('drawing.delete'),
+    }),
+    z.object({
+      type: z.literal('rotate'),
       id: z.string().uuid(),
+      angle: z.number().finite().min(-3600).max(3600),
       epoch: z.number().int().nonnegative(),
-    })
-    .strict(),
-  z.object({ type: z.literal('drawing.clear'), epoch: z.number().int().nonnegative() }).strict(),
-  z.object({ type: z.literal('activity') }),
-  z.object({
-    type: z.literal('move'),
-    id: z.string().uuid(),
-    x: coordinate,
-    y: coordinate,
-    final: z.boolean(),
-    epoch: z.number().int().nonnegative(),
-  }),
-  z.object({
-    type: z.literal('rotate'),
-    id: z.string().uuid(),
-    angle: z.number().finite().min(-3600).max(3600),
-    epoch: z.number().int().nonnegative(),
-  }),
-  z
-    .object({
-      type: z.literal('note'),
-      id: z.string().uuid(),
-      note: text(4096),
-      epoch: z.number().int().nonnegative(),
-    })
-    .strict(),
-  z.object({ type: z.literal('roll'), expression: z.string().max(128), name: text(128) }),
-  z.object({ type: z.literal('unlock'), password: z.string().max(1024) }),
-  z.object({ type: z.literal('lock') }),
-  z.object({ type: z.literal('create'), token: tokenSchema }),
-  z.object({ type: z.literal('edit'), token: tokenSchema }),
-  z.object({ type: z.literal('delete'), id: z.string().uuid() }),
-  z.object({ type: z.literal('clear') }),
-  z.object({ type: z.literal('grid'), grid: gridSchema }),
-  z.object({ type: z.literal('names'), names: z.array(text(128)).min(1).max(255) }),
-]);
+    }),
+    z
+      .object({
+        type: z.literal('note'),
+        id: z.string().uuid(),
+        note: text(4096),
+        epoch: z.number().int().nonnegative(),
+      })
+      .strict(),
+    z.object({ type: z.literal('roll'), expression: z.string().max(128), name: text(128) }),
+    z.object({ type: z.literal('unlock'), password: z.string().max(1024) }),
+    z.object({ type: z.literal('lock') }),
+    z.object({ type: z.literal('create'), token: tokenSchema }),
+    z.object({ type: z.literal('edit'), token: tokenSchema }),
+    z.object({ type: z.literal('delete'), id: z.string().uuid() }),
+    z.object({ type: z.literal('clear') }),
+    z.object({ type: z.literal('grid'), grid: gridSchema }),
+    z.object({ type: z.literal('names'), names: z.array(text(128)).min(1).max(caps.maxNames) }),
+  ]);
+export const commandSchema = createCommandSchema(DEFAULT_CAPABILITIES);
 export type Command = z.infer<typeof commandSchema>;
 export type ServerEvent =
-  | { type: 'snapshot'; room: View; dm: boolean; epoch: number }
+  | { type: 'snapshot'; room: View; dm: boolean; epoch: number; caps?: Capabilities }
   | { type: 'token'; token: PublicToken; revision: number; epoch: number }
   | { type: 'presence'; count: number; max: number }
   | { type: 'saved'; revision: number }
   | { type: 'error'; message: string }
   | { type: 'idle'; seconds: number };
-export type Capabilities = {
-  maxSeats: number;
-  maxTokens: number;
-  maxNotesBytes: number;
-  mapBytes: number;
-  mapPixels: number;
-  mapEdge: number;
-  tokenBytes: number;
-  tokenEdge: number;
-  idleMs: number;
-  dndrollUrl: string;
-};

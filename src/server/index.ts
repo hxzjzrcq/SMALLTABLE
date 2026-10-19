@@ -19,9 +19,12 @@ function listen(server: Server, port: number, host: string) {
 async function main() {
   if (existsSync('.env')) process.loadEnvFile('.env');
   const { config } = await import('./config.js');
-  const { createSmalltable } = await import('./app.js');
+  const { openSmalltable } = await import('./bootstrap.js');
   const cfg = config();
-  const service = await createSmalltable(cfg);
+  const service = await openSmalltable(cfg, {
+    roomPassword: process.env.ROOM_PASSWORD,
+    dmPassword: process.env.DM_PASSWORD,
+  });
   let stopping: Promise<void> | undefined;
   const stop = () => (stopping ??= service.close());
   const onSignal = () => {

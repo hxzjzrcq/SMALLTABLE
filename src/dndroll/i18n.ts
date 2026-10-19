@@ -3,27 +3,6 @@ import type { Ability, Locale, Text, VersionId } from '@dndroll/core';
 
 /** UI 界面文案。规则说明文字一律来自 @dndroll/core，本文件只包含界面框架文本。 */
 const dict = {
-  batchCharacter: { zh: '角色 #{n}', en: 'Character #{n}' },
-  batchView: { zh: '查看角色 #{n}', en: 'View character #{n}' },
-  batchUse: { zh: '设为当前会话', en: 'Use as current session' },
-  batchSessionJson: { zh: '完整会话 JSON（内部槽位）', en: 'Full Session JSON (internal slots)' },
-  auditMapping: { zh: '内部槽位 → 对外属性', en: 'Internal slot → native ability' },
-  batchTitle: { zh: '批量属性生成', en: 'Batch ability generation' },
-  batchCount: { zh: '批量数量', en: 'Batch count' },
-  batchGenerate: { zh: '生成批量', en: 'Generate batch' },
-  batchLifetime: {
-    zh: '本批量仅保存在当前页面内存中，刷新或关闭后清空。查看和导出不覆盖当前自动存档；只有明确“设为当前会话”才会替换。',
-    en: 'This batch lives in page memory and clears on reload or close. Viewing and exporting leave the current autosave unchanged; only “Use as current session” replaces it.',
-  },
-  batchPresetHint: {
-    zh: '1 / 2 / 4 / 8 是工具预设，不是规则人数限制。再次生成会替换本批量结果；单人会话与最近十组保持独立。',
-    en: '1 / 2 / 4 / 8 are tool presets, not a rules restriction. Generating again replaces this batch; the single session and recent groups remain separate.',
-  },
-  batchPrevious: {
-    zh: '仍保留并显示上一次成功的批量。',
-    en: 'The previous successful batch is still shown.',
-  },
-  batchReady: { zh: '本批量：{n} 组', en: 'This batch: {n} groups' },
   modifier: { zh: '调整值', en: 'Modifier' },
   close: { zh: '关闭', en: 'Close' },
   appTitle: { zh: 'DNDROLL 属性生成器', en: 'DNDROLL Ability Generator' },

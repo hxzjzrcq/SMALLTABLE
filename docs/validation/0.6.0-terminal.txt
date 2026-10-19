@@ -1,0 +1,5 @@
+PASS Linux PTY: offline initialization and four hidden password inputs
+PASS Linux PTY: mismatched confirmation leaves credentials unchanged
+PASS Linux PTY: Ctrl+C cancels without changes
+PASS Linux PTY: running service refuses reset and preserves credentials
+PASS terminal: non-TTY input rejected without changes

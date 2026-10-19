@@ -1,0 +1,19 @@
+{
+  "limits": {
+    "players": 15,
+    "tokens": 255,
+    "privateNotesBytes": 65535,
+    "initiativeEntries": 255,
+    "drawings": 255,
+    "rollHistory": 255,
+    "names": 255
+  },
+  "images": {
+    "mapBytes": 10485760,
+    "mapPixels": 16000000,
+    "mapEdge": 8192,
+    "tokenBytes": 131072,
+    "tokenEdge": 256
+  },
+  "session": { "idleMinutes": 30 }
+}

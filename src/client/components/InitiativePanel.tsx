@@ -1,14 +1,18 @@
-import { useState } from 'react';
-import { sortInitiative, type InitiativeEntry, type View } from '../../shared/model';
+import { memo, useState } from 'react';
+import { sortInitiative, type InitiativeEntry } from '../../shared/model';
 import type { SmalltableClient } from '../controller';
 
-export function InitiativePanel({
-  room,
+export const InitiativePanel = memo(function InitiativePanel({
+  maxEntries,
+  entries,
+  ascending,
   actions,
   connected,
   onClose,
 }: {
-  room: View;
+  entries: InitiativeEntry[];
+  ascending: boolean;
+  maxEntries?: number;
   actions: SmalltableClient;
   connected: boolean;
   onClose: () => void;
@@ -19,23 +23,30 @@ export function InitiativePanel({
     <section className="initiative-panel panel" aria-label="先攻盘">
       <div className="initiative-heading">
         <h2>
-          先攻盘 <span className="meta">{room.initiative.length}/255</span>
+          先攻盘{' '}
+          <span className="meta">
+            {entries.length}/{maxEntries ?? '—'}
+          </span>
         </h2>
         <button onClick={onClose} aria-label="隐藏先攻盘">
           ×
         </button>
       </div>
-      <button
-        disabled={!connected}
-        onClick={() => actions.orderInitiative(!room.initiativeAscending)}
-      >
-        {room.initiativeAscending ? '从小到大 ↑' : '从大到小 ↓'}
+      <button disabled={!connected} onClick={() => actions.orderInitiative(!ascending)}>
+        {ascending ? '从小到大 ↑' : '从大到小 ↓'}
       </button>
       <form
         className="initiative-add"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!name.trim() || !value.trim()) return;
+          if (
+            !connected ||
+            maxEntries === undefined ||
+            entries.length >= maxEntries ||
+            !name.trim() ||
+            !value.trim()
+          )
+            return;
           if (
             actions.putInitiative({
               id: crypto.randomUUID(),
@@ -67,17 +78,19 @@ export function InitiativePanel({
           value={value}
           onChange={(e) => setValue(e.target.value)}
         />
-        <button disabled={!connected || room.initiative.length >= 255}>添加</button>
+        <button disabled={!connected || maxEntries === undefined || entries.length >= maxEntries}>
+          添加
+        </button>
       </form>
       <div className="initiative-list">
-        {sortInitiative(room.initiative, room.initiativeAscending).map((entry) => (
+        {sortInitiative(entries, ascending).map((entry) => (
           <InitiativeRow key={entry.id} entry={entry} actions={actions} connected={connected} />
         ))}
-        {!room.initiative.length && <p className="empty">填写名字与数字，大家共同查看和编辑。</p>}
+        {!entries.length && <p className="empty">填写名字与数字，大家共同查看和编辑。</p>}
       </div>
     </section>
   );
-}
+});
 function InitiativeRow({
   entry,
   actions,

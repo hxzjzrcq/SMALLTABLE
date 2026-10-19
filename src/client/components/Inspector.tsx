@@ -1,16 +1,22 @@
-import { useEffect, useState } from 'react';
-import type { PublicToken, Token, View } from '../../shared/model';
+import { memo, useEffect, useState } from 'react';
+import type { PublicToken, Token } from '../../shared/model';
 import type { SmalltableClient } from '../controller';
 export function Inspector({
   token,
   dm,
   actions,
   connected,
+  tokenBytes,
+  tokenEdge,
+  maxTokens,
 }: {
   token: PublicToken | undefined;
   dm: boolean;
   actions: SmalltableClient;
   connected: boolean;
+  tokenBytes?: number;
+  tokenEdge?: number;
+  maxTokens?: number;
 }) {
   return (
     <section className="panel inspector">
@@ -34,9 +40,22 @@ export function Inspector({
               ↷ 15°
             </button>
           </div>
-          <PublicNoteEditor key={token.id} token={token} actions={actions} connected={connected} />
+          <PublicNoteEditor
+            key={`note:${token.id}`}
+            token={token}
+            actions={actions}
+            connected={connected}
+          />
           {dm && (
-            <TokenEditor key={token.id} token={token} actions={actions} connected={connected} />
+            <TokenEditor
+              key={`editor:${token.id}`}
+              tokenBytes={tokenBytes}
+              tokenEdge={tokenEdge}
+              maxTokens={maxTokens}
+              token={token}
+              actions={actions}
+              connected={connected}
+            />
           )}
         </>
       )}
@@ -95,10 +114,16 @@ function TokenEditor({
   token,
   actions,
   connected,
+  tokenBytes,
+  tokenEdge,
+  maxTokens,
 }: {
   token: PublicToken;
   actions: SmalltableClient;
   connected: boolean;
+  tokenBytes?: number;
+  tokenEdge?: number;
+  maxTokens?: number;
 }) {
   const [draft, setDraft] = useState<Token>({ ...token, secret: token.secret ?? '' }),
     [error, setError] = useState(''),
@@ -106,7 +131,11 @@ function TokenEditor({
   const field = <K extends keyof Token>(key: K, value: Token[K]) =>
     setDraft((t) => ({ ...t, [key]: value }));
   async function upload(file?: File) {
-    if (!file) return;
+    if (!file || tokenBytes === undefined) return;
+    if (file.size > tokenBytes) {
+      setError(`图片文件超过 ${tokenBytes} 字节`);
+      return;
+    }
     setBusy(true);
     try {
       const image = await actions.upload(file, 'token');
@@ -177,6 +206,9 @@ function TokenEditor({
         DM 私有说明
         <textarea rows={3} value={draft.secret} onChange={(e) => field('secret', e.target.value)} />
       </label>
+      <p className="meta">
+        棋子图片：{tokenBytes ?? '—'} 字节 · 单边 {tokenEdge ?? '—'} 像素
+      </p>
       <div className="button-row">
         <label className="button">
           设置图片
@@ -184,7 +216,7 @@ function TokenEditor({
             hidden
             type="file"
             accept="image/png,image/jpeg,image/webp"
-            disabled={!connected || busy}
+            disabled={!connected || busy || tokenBytes === undefined}
             onChange={(e) => {
               void upload(e.target.files?.[0]);
               e.target.value = '';
@@ -201,7 +233,11 @@ function TokenEditor({
         </button>
         <button
           type="button"
-          disabled={!connected}
+          disabled={
+            !connected ||
+            maxTokens === undefined ||
+            (actions.getSnapshot().room?.tokens.length ?? 0) >= maxTokens
+          }
           onClick={() =>
             actions.send({
               type: 'create',
@@ -236,36 +272,58 @@ function TokenEditor({
     </form>
   );
 }
-export function TokenList({
-  room,
-  selected,
-  onSelect,
-}: {
-  room: View;
-  selected: string | null;
-  onSelect: (id: string) => void;
-}) {
-  return (
-    <section className="panel">
-      <h2>
-        棋子清单 <span className="meta">{room.tokens.length} / 255</span>
-      </h2>
-      <div className="token-list">
-        {room.tokens.map((t, i) => (
-          <button
-            key={t.id}
-            className={selected === t.id ? 'active' : ''}
-            onClick={() => onSelect(t.id)}
-          >
-            <span
-              className="swatch"
-              style={{ background: t.color, borderRadius: t.shape === 'circle' ? '50%' : 2 }}
-            />
-            {t.name || t.label || `棋子 ${i + 1}`}
-          </button>
-        ))}
-        {!room.tokens.length && <p className="empty">桌面暂无棋子</p>}
-      </div>
-    </section>
-  );
-}
+export const TokenList = memo(
+  function TokenList({
+    tokens,
+    selected,
+    onSelect,
+    maxTokens,
+  }: {
+    tokens: PublicToken[];
+    selected: string | null;
+    onSelect: (id: string) => void;
+    maxTokens?: number;
+  }) {
+    return (
+      <section className="panel">
+        <h2>
+          棋子清单{' '}
+          <span className="meta">
+            {tokens.length} / {maxTokens ?? '—'}
+          </span>
+        </h2>
+        <div className="token-list">
+          {tokens.map((t, i) => (
+            <button
+              key={t.id}
+              className={selected === t.id ? 'active' : ''}
+              onClick={() => onSelect(t.id)}
+            >
+              <span
+                className="swatch"
+                style={{ background: t.color, borderRadius: t.shape === 'circle' ? '50%' : 2 }}
+              />
+              {t.name || t.label || `棋子 ${i + 1}`}
+            </button>
+          ))}
+          {!tokens.length && <p className="empty">桌面暂无棋子</p>}
+        </div>
+      </section>
+    );
+  },
+  (a, b) =>
+    a.selected === b.selected &&
+    a.maxTokens === b.maxTokens &&
+    a.onSelect === b.onSelect &&
+    a.tokens.length === b.tokens.length &&
+    a.tokens.every((t, i) => {
+      const other = b.tokens[i];
+      return (
+        t.id === other.id &&
+        t.name === other.name &&
+        t.label === other.label &&
+        t.color === other.color &&
+        t.shape === other.shape
+      );
+    }),
+);

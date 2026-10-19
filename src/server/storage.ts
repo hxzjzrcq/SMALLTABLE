@@ -3,31 +3,53 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import AdmZip from 'adm-zip';
-import { assetId, parseRoom, type Room } from '../shared/model.js';
-import type { Config } from './config.js';
+import { assetId, type Room } from '../shared/model.js';
+import type { Capabilities } from '../shared/limits.js';
+export interface StorageOptions {
+  dataDir: string;
+  images: Pick<Capabilities, 'mapBytes' | 'mapPixels' | 'mapEdge' | 'tokenBytes' | 'tokenEdge'>;
+  backup: { bytes: number; entries: number; roomBytes: number };
+  parse: (input: unknown) => Room;
+}
 export class Storage {
   private chain: Promise<void> = Promise.resolve();
   readonly assetDir: string;
-  constructor(readonly cfg: Config) {
-    this.assetDir = path.join(cfg.dataDir, 'assets');
+  constructor(private readonly options: StorageOptions) {
+    this.assetDir = path.join(options.dataDir, 'assets');
   }
   async load(): Promise<Room | null> {
     await mkdir(this.assetDir, { recursive: true });
     try {
-      return parseRoom(
-        JSON.parse(await readFile(path.join(this.cfg.dataDir, 'room.json'), 'utf8')),
-      );
+      const file = path.join(this.options.dataDir, 'room.json');
+      if ((await stat(file)).size > this.options.backup.roomBytes)
+        throw Error('room.json 超过大小上限');
+      const room = this.options.parse(JSON.parse(await readFile(file, 'utf8')));
+      for (const id of this.refs(room)) {
+        if (room.map?.asset === id) {
+          const m = await this.checkImage(id, 'map');
+          if (m.width !== room.map.width || m.height !== room.map.height)
+            throw Error('地图尺寸不一致');
+        }
+        if (room.tokens.some((t) => t.asset === id)) await this.checkImage(id, 'token');
+      }
+      return room;
     } catch (e) {
-      if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null;
+      if (
+        (e as NodeJS.ErrnoException).code === 'ENOENT' &&
+        (e as NodeJS.ErrnoException).path === path.join(this.options.dataDir, 'room.json')
+      )
+        return null;
       throw Error('存档损坏，拒绝覆盖；请恢复备份', { cause: e });
     }
   }
   save(room: Room) {
-    const json = JSON.stringify(room);
+    const json = JSON.stringify(this.options.parse(room));
+    if (Buffer.byteLength(json) > this.options.backup.roomBytes)
+      throw Error('room.json 超过大小上限');
     const next = this.chain
       .catch(() => {})
       .then(async () => {
-        const tmp = path.join(this.cfg.dataDir, 'room.json.tmp');
+        const tmp = path.join(this.options.dataDir, 'room.json.tmp');
         const handle = await open(tmp, 'w');
         try {
           await handle.writeFile(json);
@@ -35,13 +57,13 @@ export class Storage {
         } finally {
           await handle.close();
         }
-        await rename(tmp, path.join(this.cfg.dataDir, 'room.json'));
+        await rename(tmp, path.join(this.options.dataDir, 'room.json'));
       });
     this.chain = next;
     return next;
   }
-  async validateImage(buffer: Buffer, kind: 'map' | 'token') {
-    const c = this.cfg.caps;
+  private async inspectImage(buffer: Buffer, kind: 'map' | 'token') {
+    const c = this.options.images;
     const maxBytes = kind === 'map' ? c.mapBytes : c.tokenBytes,
       edge = kind === 'map' ? c.mapEdge : c.tokenEdge,
       pixels = kind === 'map' ? c.mapPixels : c.tokenEdge ** 2;
@@ -58,6 +80,18 @@ export class Storage {
       m.width * m.height > pixels
     )
       throw Error('图片格式、动画或尺寸不符合限制');
+    return { input, width: m.width, height: m.height, maxBytes };
+  }
+  async checkImage(id: string, kind: 'map' | 'token') {
+    assetId.parse(id);
+    const file = path.join(this.assetDir, id);
+    const max = kind === 'map' ? this.options.images.mapBytes : this.options.images.tokenBytes;
+    if ((await stat(file)).size > max) throw Error('图片文件超过上限');
+    const { width, height } = await this.inspectImage(await readFile(file), kind);
+    return { width, height };
+  }
+  async validateImage(buffer: Buffer, kind: 'map' | 'token') {
+    const { input, maxBytes } = await this.inspectImage(buffer, kind);
     const { data, info } = await input
       .rotate()
       .webp({ lossless: true })
@@ -102,11 +136,12 @@ export class Storage {
     return zip.toBuffer();
   }
   async prepareRestore(buffer: Buffer) {
-    const budget = this.cfg.caps.mapBytes + 255 * this.cfg.caps.tokenBytes + 8 * 1024 * 1024;
+    const limits = this.options.backup;
+    const budget = limits.bytes;
     if (buffer.length > budget) throw Error('备份超过大小上限');
     const zip = new AdmZip(buffer);
     const entries = zip.getEntries();
-    if (entries.length > 257) throw Error('备份文件数量异常');
+    if (entries.length > limits.entries) throw Error('备份文件数量异常');
     let total = 0;
     const files = new Map<string, Buffer>();
     for (const entry of entries) {
@@ -119,15 +154,15 @@ export class Storage {
       const data = entry.getData();
       const limit =
         entry.entryName === 'room.json'
-          ? 8 * 1024 * 1024
-          : Math.max(this.cfg.caps.mapBytes, this.cfg.caps.tokenBytes);
+          ? limits.roomBytes
+          : Math.max(this.options.images.mapBytes, this.options.images.tokenBytes);
       // The ZIP header size is attacker-controlled; verify the actual bytes too.
       if (data.length !== entry.header.size) throw Error('备份条目大小不一致');
       total += data.length;
       if (total > budget || data.length > limit) throw Error('备份展开大小超限');
       files.set(entry.entryName, data);
     }
-    const room = parseRoom(JSON.parse(files.get('room.json')?.toString('utf8') ?? 'null'));
+    const room = this.options.parse(JSON.parse(files.get('room.json')?.toString('utf8') ?? 'null'));
     for (const id of this.refs(room)) {
       const data = files.get('assets/' + id);
       if (!data || createHash('sha256').update(data).digest('hex') + '.webp' !== id)

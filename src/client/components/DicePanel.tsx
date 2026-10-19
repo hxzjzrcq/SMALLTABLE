@@ -1,22 +1,29 @@
-import { useState } from 'react';
-import type { View } from '../../shared/model';
+import { memo, useState } from 'react';
+import type { Roll } from '../../shared/model';
 import type { SmalltableClient } from '../controller';
-export function DicePanel({
-  room,
+export const DicePanel = memo(function DicePanel({
+  maxRolls,
+  rolls,
+  names,
   actions,
   connected,
 }: {
-  room: View;
+  rolls: Roll[];
+  names: string[];
+  maxRolls?: number;
   actions: SmalltableClient;
   connected: boolean;
 }) {
   const [name, setName] = useState(''),
     [expression, setExpression] = useState('1d20');
-  const current = room.names.includes(name) ? name : room.names[0];
+  const current = names.includes(name) ? name : names[0];
   return (
     <section className="panel dice">
       <h2>
-        公共骰盘 <span className="meta">最近 {room.rolls.length} / 255 条</span>
+        公共骰盘{' '}
+        <span className="meta">
+          最近 {rolls.length} / {maxRolls ?? '—'} 条
+        </span>
       </h2>
       <form
         onSubmit={(e) => {
@@ -27,7 +34,7 @@ export function DicePanel({
         <label>
           显示名称
           <select value={current} onChange={(e) => setName(e.target.value)}>
-            {room.names.map((n) => (
+            {names.map((n) => (
               <option key={n}>{n}</option>
             ))}
           </select>
@@ -60,7 +67,7 @@ export function DicePanel({
         ))}
       </div>
       <div className="roll-log" aria-live="polite">
-        {[...room.rolls].reverse().map((r) => (
+        {[...rolls].reverse().map((r) => (
           <article className="roll" key={r.id}>
             <div>
               <strong>{r.name}</strong>
@@ -77,8 +84,8 @@ export function DicePanel({
             </small>
           </article>
         ))}
-        {!room.rolls.length && <p className="empty">还没有投骰记录</p>}
+        {!rolls.length && <p className="empty">还没有投骰记录</p>}
       </div>
     </section>
   );
-}
+});

@@ -1,14 +1,24 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { PasswordSettings } from './PasswordSettings';
-import type { View } from '../../shared/model';
+import type { Room } from '../../shared/model';
 import type { SmalltableClient } from '../controller';
-export function DMPanel({
-  room,
+export const DMPanel = memo(function DMPanel({
+  maxNames,
+  mapBytes,
+  mapPixels,
+  mapEdge,
+  grid,
+  names,
   dm,
   actions,
   connected,
 }: {
-  room: View;
+  grid: Room['grid'];
+  names: string[];
+  maxNames?: number;
+  mapBytes?: number;
+  mapPixels?: number;
+  mapEdge?: number;
   dm: boolean;
   actions: SmalltableClient;
   connected: boolean;
@@ -61,23 +71,33 @@ export function DMPanel({
               <input
                 type="file"
                 hidden
-                disabled={busy || !connected}
+                disabled={busy || !connected || mapBytes === undefined}
                 accept="image/png,image/jpeg,image/webp"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f && confirm('替换地图？现有棋子将保留原坐标。'))
+                  if (f && mapBytes !== undefined && f.size > mapBytes)
+                    setMessage(`地图文件超过 ${mapBytes} 字节`);
+                  else if (f && confirm('替换地图？现有棋子将保留原坐标。'))
                     void task(() => actions.upload(f, 'map'), '地图已替换');
                   e.target.value = '';
                 }}
               />
             </label>
           </div>
+          <p className="meta">
+            地图：{mapBytes ?? '—'} 字节 · {mapPixels ?? '—'} 像素 · 单边 {mapEdge ?? '—'} 像素
+          </p>
           <GridEditor
-            key={`${room.grid.cell}:${room.grid.x}:${room.grid.y}:${room.grid.visible}`}
-            room={room}
+            key={`${grid.cell}:${grid.x}:${grid.y}:${grid.visible}`}
+            initialGrid={grid}
             actions={actions}
           />
-          <NamesEditor key={JSON.stringify(room.names)} names={room.names} actions={actions} />
+          <NamesEditor
+            maxNames={maxNames}
+            key={JSON.stringify(names)}
+            names={names}
+            actions={actions}
+          />
           <PasswordSettings actions={actions} connected={connected} />
           <h3>房间存档</h3>
           <div className="button-row">
@@ -121,9 +141,15 @@ export function DMPanel({
       )}
     </section>
   );
-}
-function GridEditor({ room, actions }: { room: View; actions: SmalltableClient }) {
-  const [grid, setGrid] = useState(room.grid);
+});
+function GridEditor({
+  initialGrid,
+  actions,
+}: {
+  initialGrid: Room['grid'];
+  actions: SmalltableClient;
+}) {
+  const [grid, setGrid] = useState(initialGrid);
   return (
     <form
       onSubmit={(e) => {
@@ -168,19 +194,26 @@ function GridEditor({ room, actions }: { room: View; actions: SmalltableClient }
     </form>
   );
 }
-function NamesEditor({ names, actions }: { names: string[]; actions: SmalltableClient }) {
+function NamesEditor({
+  names,
+  actions,
+  maxNames,
+}: {
+  names: string[];
+  actions: SmalltableClient;
+  maxNames?: number;
+}) {
   const [text, setText] = useState(names.join('\n'));
+  const values = text
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const valid = maxNames !== undefined && values.length > 0 && values.length <= maxNames;
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        actions.send({
-          type: 'names',
-          names: text
-            .split('\n')
-            .map((s) => s.trim())
-            .filter(Boolean),
-        });
+        if (valid) actions.send({ type: 'names', names: values });
       }}
     >
       <h3>骰子显示名称</h3>
@@ -188,7 +221,10 @@ function NamesEditor({ names, actions }: { names: string[]; actions: SmalltableC
         每行一个名称
         <textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} />
       </label>
-      <button>保存名单</button>
+      <span className="meta">
+        {values.length} / {maxNames ?? '—'} 个名称
+      </span>
+      <button disabled={!valid}>保存名单</button>
     </form>
   );
 }

@@ -4,7 +4,7 @@ import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { WebSocket } from 'ws';
-import { createSmalltable } from '../src/server/app';
+import { createSmalltable } from './helpers';
 import { config } from '../src/server/config';
 import type { ServerEvent } from '../src/shared/model';
 

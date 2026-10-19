@@ -1,5 +1,5 @@
 import { LoginPage } from './components/LoginPage';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useSmalltable } from './useSmalltable';
 import { Board } from './components/Board';
 import { Notes } from './components/Notes';
@@ -20,11 +20,15 @@ export default function App() {
     [drawColor, setDrawColor] = useState<Drawing['color']>('#d33b32'),
     [panelOpen, setPanelOpen] = useState(true),
     [tab, setTab] = useState<'dice' | 'tokens' | 'notes' | 'dm'>('dice');
+  const closeInitiative = useCallback(() => setInitiativeOpen(false), []);
+  const closeAbility = useCallback(() => setAbilityOpen(false), []);
+  const caps = state.caps;
   const connected = connection === 'connected';
   const token = room?.tokens.find((t) => t.id === selected);
   if (!room)
     return (
       <LoginPage
+        maxNotesBytes={caps?.maxNotesBytes}
         connection={connection}
         error={state.error}
         notice={state.notice}
@@ -125,6 +129,11 @@ export default function App() {
                 <option value="#202b36">黑色</option>
               </select>
             )}
+            {tool === 'draw' && (
+              <span className="meta">
+                线条 {room.drawings.length} / {caps?.maxDrawings ?? '—'}
+              </span>
+            )}
             {dm && tool === 'draw' && (
               <button
                 disabled={!connected || !room.drawings.length}
@@ -145,16 +154,20 @@ export default function App() {
             >
               {panelOpen ? '收起面板' : '展开面板'}
             </button>
-            <span className="meta">棋子 {room.tokens.length} / 255</span>
+            <span className="meta">
+              棋子 {room.tokens.length} / {caps?.maxTokens ?? '—'}
+            </span>
           </div>
         </nav>
         <main className="workspace">
           {initiativeOpen && (
             <InitiativePanel
-              room={room}
+              entries={room.initiative}
+              ascending={room.initiativeAscending}
+              maxEntries={caps?.maxInitiative}
               actions={actions}
               connected={connected}
-              onClose={() => setInitiativeOpen(false)}
+              onClose={closeInitiative}
             />
           )}
           <Board
@@ -170,6 +183,7 @@ export default function App() {
             fitSignal={fit}
             epoch={state.epoch}
             connected={connected}
+            maxDrawings={caps?.maxDrawings}
           />
           <aside>
             <nav className="tabs" aria-label="侧面板">
@@ -188,29 +202,61 @@ export default function App() {
             </nav>
             <div className="sidebar-content">
               <div hidden={tab !== 'dice'}>
-                <DicePanel room={room} actions={actions} connected={connected} />
+                <DicePanel
+                  maxRolls={caps?.maxRolls}
+                  rolls={room.rolls}
+                  names={room.names}
+                  actions={actions}
+                  connected={connected}
+                />
               </div>
               <div hidden={tab !== 'tokens'}>
                 {dm && (
                   <section className="panel">
-                    <button disabled={!connected || room.tokens.length >= 255} onClick={create}>
+                    <button
+                      disabled={!connected || !caps || room.tokens.length >= caps.maxTokens}
+                      onClick={create}
+                    >
                       ＋ 无图片棋子
                     </button>
                   </section>
                 )}
-                <Inspector token={token} dm={dm} actions={actions} connected={connected} />
-                <TokenList room={room} selected={selected} onSelect={setSelected} />
+                <Inspector
+                  token={token}
+                  dm={dm}
+                  actions={actions}
+                  connected={connected}
+                  tokenBytes={caps?.tokenBytes}
+                  tokenEdge={caps?.tokenEdge}
+                  maxTokens={caps?.maxTokens}
+                />
+                <TokenList
+                  maxTokens={caps?.maxTokens}
+                  tokens={room.tokens}
+                  selected={selected}
+                  onSelect={setSelected}
+                />
               </div>
               <div hidden={tab !== 'notes'}>
-                <Notes />
+                <Notes maxBytes={caps?.maxNotesBytes} />
               </div>
               <div hidden={tab !== 'dm'}>
-                <DMPanel room={room} dm={dm} actions={actions} connected={connected} />
+                <DMPanel
+                  mapBytes={caps?.mapBytes}
+                  mapPixels={caps?.mapPixels}
+                  mapEdge={caps?.mapEdge}
+                  maxNames={caps?.maxNames}
+                  grid={room.grid}
+                  names={room.names}
+                  dm={dm}
+                  actions={actions}
+                  connected={connected}
+                />
               </div>
             </div>
           </aside>
         </main>
-        <AbilityTool open={abilityOpen} onClose={() => setAbilityOpen(false)} actions={actions} />
+        <AbilityTool open={abilityOpen} onClose={closeAbility} actions={actions} />
         <footer>
           格是标尺，规则由人解释。
           <span>{dm ? 'DM 工具箱已解锁' : '普通桌面权限'} · 不提供撤销</span>

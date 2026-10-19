@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { bytes } from '../../shared/model';
 import { download } from '../controller';
-import { readNotes, writeNotes, NOTES_LIMIT as MAX } from '../notes-store';
-export function Notes() {
+import { readNotes, writeNotes } from '../notes-store';
+export const Notes = memo(function Notes({ maxBytes: MAX }: { maxBytes?: number } = {}) {
   const [initial] = useState(() => {
     try {
       return { text: readNotes(localStorage), error: '' };
@@ -14,13 +14,15 @@ export function Notes() {
   const [text, setText] = useState(initial.text);
   const [composing, setComposing] = useState(false);
   function commit(value: string) {
-    if (bytes(value) > MAX) {
-      setError('超过 65535 字节，已保留最后有效内容');
+    if (MAX === undefined || bytes(value) > MAX) {
+      setError(
+        MAX === undefined ? '正在读取配置，请稍后重试' : `超过 ${MAX} 字节，已保留最后有效内容`,
+      );
       return;
     }
     setText(value);
     try {
-      writeNotes(localStorage, value);
+      writeNotes(localStorage, value, MAX);
       setError('');
     } catch {
       setError('浏览器保存失败，请复制或导出备份');
@@ -28,23 +30,25 @@ export function Notes() {
   }
   const [draft, setDraft] = useState(text);
   function accept(value: string) {
-    if (bytes(value) > MAX) {
+    if (MAX === undefined || bytes(value) > MAX) {
       setDraft(text);
-      setError('超过 65535 字节，已保留最后有效内容');
+      setError(
+        MAX === undefined ? '正在读取配置，请稍后重试' : `超过 ${MAX} 字节，已保留最后有效内容`,
+      );
     } else {
       commit(value);
       setDraft(value);
     }
   }
   async function importText(file?: File) {
-    if (!file) return;
+    if (!file || MAX === undefined) return;
     if (file.size > MAX) {
       setError('文件超过字节上限');
       return;
     }
     try {
       const value = await file.text();
-      if (bytes(value) > MAX) throw Error('文件超过字节上限');
+      if (MAX === undefined || bytes(value) > MAX) throw Error('文件超过字节上限');
       if (confirm('用导入的 TXT 覆盖当前笔记？')) accept(value);
     } catch (e) {
       setError(String(e));
@@ -58,6 +62,7 @@ export function Notes() {
       <p className="hint">换设备前请自行导出。房间备份不包含笔记。</p>
       <textarea
         aria-label="私人笔记"
+        readOnly={MAX === undefined}
         value={draft}
         onCompositionStart={() => setComposing(true)}
         onCompositionEnd={(e) => {
@@ -70,7 +75,7 @@ export function Notes() {
         }}
       />
       <div className="meta">
-        {bytes(draft)} / {MAX} 字节
+        {bytes(draft)} / {MAX ?? '读取中…'} 字节
       </div>
       <div className="button-row">
         <button
@@ -95,6 +100,7 @@ export function Notes() {
           <input
             type="file"
             accept=".txt,text/plain"
+            disabled={MAX === undefined}
             hidden
             onChange={(e) => {
               void importText(e.target.files?.[0]);
@@ -110,4 +116,4 @@ export function Notes() {
       )}
     </section>
   );
-}
+});

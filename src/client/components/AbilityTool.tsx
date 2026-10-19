@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import type { SmalltableClient } from '../controller';
-/** Keep the frame mounted after first open: closing it preserves in-memory batches/history. */
-export function AbilityTool({
+/** Keep the frame mounted after first open: closing it preserves in-memory sessions/history. */
+export const AbilityTool = memo(function AbilityTool({
   open,
   onClose,
   actions,
@@ -51,4 +51,4 @@ export function AbilityTool({
       {started && <iframe ref={frame} src="/dndroll.html" title="DNDROLL 属性生成器" />}
     </dialog>
   );
-}
+});

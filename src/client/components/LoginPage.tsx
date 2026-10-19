@@ -4,12 +4,14 @@ import { Notes } from './Notes';
 import { mountLoginScene, type LoginScene, type LoginVisualState } from '../login/scene.js';
 
 export function LoginPage({
+  maxNotesBytes,
   connection,
   error,
   notice,
   onSubmit,
   onEdit,
 }: {
+  maxNotesBytes?: number;
   connection: Connection;
   error: string;
   notice: string;
@@ -123,7 +125,7 @@ export function LoginPage({
       </div>
       <details className="st-login-notes">
         <summary>查看本机私人笔记</summary>
-        <Notes />
+        <Notes maxBytes={maxNotesBytes} />
       </details>
     </main>
   );

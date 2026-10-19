@@ -19,7 +19,7 @@ const empty: ClientState = {
   dm: false,
   epoch: 0,
   count: 0,
-  max: 15,
+  max: 0,
   savedRevision: -1,
   error: '',
   notice: '',
@@ -50,7 +50,8 @@ export class SmalltableClient {
   dismiss = () => this.patch({ error: '', notice: '' });
   async loadConfig() {
     try {
-      this.patch({ caps: await this.request<Capabilities>('/api/config') });
+      const caps = await this.request<Capabilities>('/api/config');
+      this.patch({ caps, max: caps.maxSeats });
     } catch (e) {
       this.fail(e);
     }
@@ -154,7 +155,13 @@ export class SmalltableClient {
   private receive(event: ServerEvent) {
     switch (event.type) {
       case 'snapshot':
-        this.patch({ room: event.room, dm: event.dm, epoch: event.epoch });
+        this.patch({
+          room: event.room,
+          dm: event.dm,
+          epoch: event.epoch,
+          caps: event.caps ?? this.state.caps,
+          max: event.caps?.maxSeats ?? this.state.max,
+        });
         break;
       case 'token':
         if (

@@ -7,7 +7,7 @@ import { once } from 'node:events';
 import { WebSocket } from 'ws';
 import AdmZip from 'adm-zip';
 import { CredentialStore, validatePassword } from '../src/server/credentials.js';
-import { createSmalltable } from '../src/server/app.js';
+import { createSmalltable } from './helpers.js';
 import { config } from '../src/server/config.js';
 import type { ServerEvent } from '../src/shared/model.js';
 const roomPassword = 'Room-055-Start',
@@ -115,8 +115,8 @@ test('initialization fails closed; independent salted credentials persist; reset
 
 async function setup() {
   const dir = await directory();
-  const cfg = { ...config(), dataDir: dir, roomPassword, dmPassword };
-  let service = await createSmalltable(cfg);
+  const cfg = { ...config(), dataDir: dir };
+  let service = await createSmalltable(cfg, { roomPassword, dmPassword });
   const sockets: WebSocket[] = [];
   async function listen() {
     await new Promise<void>((r) => service.server.listen(0, '127.0.0.1', r));
@@ -179,7 +179,7 @@ async function setup() {
     async restart() {
       for (const ws of sockets) ws.terminate();
       await service.close();
-      service = await createSmalltable({ ...cfg, roomPassword: undefined, dmPassword: undefined });
+      service = await createSmalltable(cfg, {});
       url = await listen();
     },
     async close() {

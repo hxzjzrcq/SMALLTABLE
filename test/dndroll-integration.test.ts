@@ -16,7 +16,7 @@ import {
   serializeSession,
   deserializeSession,
 } from '@dndroll/core';
-import { createSmalltable } from '../src/server/app.js';
+import { createSmalltable } from './helpers.js';
 import { config } from '../src/server/config.js';
 test('vendored Core source is byte-identical to the supplied DNDROLL 0.4 source', async () => {
   const root = path.resolve('packages/dndroll-core');

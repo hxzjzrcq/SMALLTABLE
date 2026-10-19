@@ -3,9 +3,9 @@ import { createServer } from 'node:http';
 import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { WebSocketServer, WebSocket } from 'ws';
 import path from 'node:path';
-import { readFile } from 'node:fs/promises';
 import {
-  commandSchema,
+  createCommandSchema,
+  parseRoom,
   initialRoom,
   project,
   publicToken,
@@ -14,10 +14,11 @@ import {
 } from '../shared/model.js';
 import { rollDice } from '../shared/dice.js';
 import { Limiter } from './auth.js';
-import { CredentialStore } from './credentials.js';
+import type { CredentialStore } from './credentials.js';
+import { canCommand, canHttp, type HttpOperation } from './permissions.js';
 import { passwordChangeSchema } from '../shared/passwords.js';
 import { Storage } from './storage.js';
-import type { Config } from './config.js';
+import { backupLimits, type Config } from './config.js';
 interface Session {
   id: string;
   dm: boolean;
@@ -30,16 +31,18 @@ interface Session {
   moveAt: Map<string, number>;
   warned: boolean;
 }
-export async function createSmalltable(cfg: Config) {
-  const storage = new Storage(cfg);
-  const credentials = await CredentialStore.open(cfg.dataDir, cfg);
-  let room: Room;
-  try {
-    room = (await storage.load()) ?? initialRoom();
-  } catch (e) {
-    await credentials.close();
-    throw e;
-  }
+export type CredentialAccess = Pick<CredentialStore, 'roomMatches' | 'dmMatches' | 'change'>;
+export async function createSmalltable(cfg: Config, credentials: CredentialAccess) {
+  const { mapBytes, mapPixels, mapEdge, tokenBytes, tokenEdge } = cfg.caps;
+  const budgets = backupLimits(cfg.caps);
+  const storage = new Storage({
+    dataDir: cfg.dataDir,
+    images: { mapBytes, mapPixels, mapEdge, tokenBytes, tokenEdge },
+    backup: budgets,
+    parse: (input) => parseRoom(input, cfg.caps),
+  });
+  const commandSchema = createCommandSchema(cfg.caps);
+  let room: Room = (await storage.load()) ?? initialRoom();
   let epoch = 0,
     credentialGeneration = 0;
   const sessions = new Map<string, Session>(),
@@ -51,7 +54,7 @@ export async function createSmalltable(cfg: Config) {
   const server = createServer(app);
   const wss = new WebSocketServer({
     noServer: true,
-    maxPayload: 64 * 1024,
+    maxPayload: Math.max(64 * 1024, cfg.caps.maxNames * 1024 + 1024),
     perMessageDeflate: false,
     handleProtocols: () => 'tabletop',
   });
@@ -84,7 +87,7 @@ export async function createSmalltable(cfg: Config) {
       max: cfg.caps.maxSeats,
     });
   const snapshot = (s: Session) => {
-    send(s, { type: 'snapshot', room: project(room, s.dm), dm: s.dm, epoch });
+    send(s, { type: 'snapshot', room: project(room, s.dm), dm: s.dm, epoch, caps: cfg.caps });
     send(s, { type: 'saved', revision: savedRevision });
   };
   const snapshots = () => {
@@ -146,9 +149,18 @@ export async function createSmalltable(cfg: Config) {
     if (!originOK(req)) return res.status(403).json({ error: '来源不允许' });
     next();
   });
-  app.get('/api/config', (_req, res) => res.json(cfg.caps));
+  const requireHttp = (req: Request, operation: HttpOperation) => {
+    const s = auth(req);
+    if (!canHttp(s, operation)) throw Error('需要有效会话及对应权限');
+    return s;
+  };
+  app.get('/api/config', (req, res) => {
+    requireHttp(req, 'GET /api/config');
+    res.json(cfg.caps);
+  });
   app.post('/api/login', express.json({ limit: '2kb' }), async (req, res, next) => {
     try {
+      requireHttp(req, 'POST /api/login');
       if (!loginLimiter.take(req.socket.remoteAddress ?? ''))
         return res.status(429).json({ error: '尝试过于频繁，请稍后重试' });
       if (sessions.size >= cfg.caps.maxSeats)
@@ -176,7 +188,7 @@ export async function createSmalltable(cfg: Config) {
       });
       res.setHeader(
         'Set-Cookie',
-        `tt_room=${id}; HttpOnly; SameSite=Strict; Path=/${process.env.COOKIE_SECURE === 'true' ? '; Secure' : ''}`,
+        `tt_room=${id}; HttpOnly; SameSite=Strict; Path=/${cfg.cookieSecure ? '; Secure' : ''}`,
       );
       res.setHeader('Cache-Control', 'no-store');
       res.json({ token: id });
@@ -189,19 +201,19 @@ export async function createSmalltable(cfg: Config) {
     res.setHeader('Cache-Control', 'no-store');
     next();
   });
-  const requireDM = (req: Request) => {
-    const s = auth(req);
-    if (!s?.dm || !s.ws) throw Error('需要解锁 DM 工具箱');
+  const requireDM = (req: Request, operation: HttpOperation) => {
+    const s = requireHttp(req, operation);
+    if (!s?.ws) throw Error('需要解锁 DM 工具箱');
     return s;
   };
   app.post('/api/passwords', express.json({ limit: '4kb' }), async (req, res, next) => {
     try {
-      requireDM(req);
+      requireDM(req, 'POST /api/passwords');
       if (!dmLimiter.take(req.socket.remoteAddress ?? ''))
         throw Error('密码尝试过于频繁，请稍后重试');
       const input = passwordChangeSchema.parse(req.body);
       await enqueue(async () => {
-        requireDM(req);
+        requireDM(req, 'POST /api/passwords');
         await credentials.change(input);
         if (input.roomPassword !== undefined) {
           credentialGeneration++;
@@ -223,9 +235,9 @@ export async function createSmalltable(cfg: Config) {
   });
   app.get('/api/backup', async (req, res, next) => {
     try {
-      requireDM(req);
+      requireDM(req, 'GET /api/backup');
       const data = await enqueue(async () => {
-        requireDM(req);
+        requireDM(req, 'GET /api/backup');
         await persist();
         if (saveError) throw Error('保存失败，暂不能导出');
         return storage.backup(structuredClone(room));
@@ -235,12 +247,12 @@ export async function createSmalltable(cfg: Config) {
       next(e);
     }
   });
-  const maxBackup = cfg.caps.mapBytes + 255 * cfg.caps.tokenBytes + 8 * 1024 * 1024;
+  const maxBackup = budgets.bytes;
   app.post(
     '/api/restore',
     (req, res, next) => {
       try {
-        requireDM(req);
+        requireDM(req, 'POST /api/restore');
         if (!uploadLimiter.take(auth(req)!.id)) throw Error('上传过于频繁');
         next();
       } catch (e) {
@@ -252,7 +264,7 @@ export async function createSmalltable(cfg: Config) {
       try {
         if (!Buffer.isBuffer(req.body)) throw Error('需要 ZIP 备份');
         await enqueue(async () => {
-          requireDM(req);
+          requireDM(req, 'POST /api/restore');
           const prepared = await storage.prepareRestore(req.body);
           await prepared.commitAssets();
           const nextRoom = prepared.room;
@@ -276,7 +288,7 @@ export async function createSmalltable(cfg: Config) {
     '/api/image/:kind',
     (req, res, next) => {
       try {
-        requireDM(req);
+        requireDM(req, 'POST /api/image/:kind');
         if (!['map', 'token'].includes(String(req.params.kind))) throw Error('未知图片用途');
         if (!uploadLimiter.take(auth(req)!.id)) throw Error('上传过于频繁');
         next();
@@ -292,7 +304,7 @@ export async function createSmalltable(cfg: Config) {
       try {
         if (!Buffer.isBuffer(req.body)) throw Error('需要图片二进制数据');
         const image = await enqueue(async () => {
-          requireDM(req);
+          requireDM(req, 'POST /api/image/:kind');
           const kind = req.params.kind as 'map' | 'token';
           await storage.collect(room);
           const image = await storage.put(req.body, kind);
@@ -311,13 +323,16 @@ export async function createSmalltable(cfg: Config) {
     },
   );
   app.get('/media/:id', (req, res) => {
-    if (!auth(req)) return res.sendStatus(401);
+    if (!canHttp(auth(req), 'GET /media/:id')) return res.sendStatus(401);
     const id = String(req.params.id);
     if (!/^[a-f0-9]{64}\.webp$/.test(id)) return res.sendStatus(404);
     res.setHeader('Cache-Control', 'private, max-age=3600');
     res.sendFile(path.join(storage.assetDir, id));
   });
-  app.get('/api/health', (_req, res) => res.json({ ok: !saveError, revision: room.revision }));
+  app.get('/api/health', (req, res) => {
+    requireHttp(req, 'GET /api/health');
+    res.json({ ok: !saveError, revision: room.revision });
+  });
   app.use(express.static(path.resolve('dist')));
   app.get('/', (_req, res) => res.sendFile(path.resolve('dist/index.html')));
   app.use((err: Error, _req: Request, res: express.Response, _next: express.NextFunction) => {
@@ -357,6 +372,7 @@ export async function createSmalltable(cfg: Config) {
           if (!sessions.has(s.id) || closed) return;
           try {
             const c = commandSchema.parse(JSON.parse(data.toString()));
+            if (!canCommand(s, c.type)) throw Error('操作未授权');
             if (c.type === 'activity') {
               s.lastActivity = Date.now();
               s.warned = false;
@@ -415,7 +431,7 @@ export async function createSmalltable(cfg: Config) {
                 time: new Date().toISOString(),
                 ...rollDice(c.expression, (n) => randomInt(1, n + 1)),
               });
-              room.rolls = room.rolls.slice(-255);
+              room.rolls = room.rolls.slice(-cfg.caps.maxRolls);
               changed(true);
               snapshots();
               return;
@@ -430,7 +446,8 @@ export async function createSmalltable(cfg: Config) {
                 case 'initiative.put': {
                   const i = room.initiative.findIndex((e) => e.id === c.entry.id);
                   if (i < 0) {
-                    if (room.initiative.length >= 255) throw Error('先攻条目已达 255');
+                    if (room.initiative.length >= cfg.caps.maxInitiative)
+                      throw Error(`先攻条目已达 ${cfg.caps.maxInitiative}`);
                     room.initiative.push(c.entry);
                   } else room.initiative[i] = c.entry;
                   break;
@@ -442,7 +459,8 @@ export async function createSmalltable(cfg: Config) {
                   room.initiativeAscending = c.ascending;
                   break;
                 case 'drawing.add':
-                  if (room.drawings.length >= 255) throw Error('线条已达 255');
+                  if (room.drawings.length >= cfg.caps.maxDrawings)
+                    throw Error(`线条已达 ${cfg.caps.maxDrawings}`);
                   if (room.drawings.some((d) => d.id === c.drawing.id)) throw Error('重复线条 ID');
                   room.drawings.push(c.drawing);
                   break;
@@ -450,34 +468,28 @@ export async function createSmalltable(cfg: Config) {
                   room.drawings = room.drawings.filter((d) => d.id !== c.id);
                   break;
                 case 'drawing.clear':
-                  if (!s.dm) throw Error('需要解锁 DM 工具箱');
                   room.drawings = [];
                   break;
+                default:
+                  throw Error('未实现的房间命令');
               }
               changed(true);
               snapshots();
               return;
             }
-            if (!s.dm) throw Error('需要解锁 DM 工具箱');
             switch (c.type) {
               case 'create':
-                if (room.tokens.length >= 255) throw Error('棋子数量已达 255');
+                if (room.tokens.length >= cfg.caps.maxTokens)
+                  throw Error(`棋子数量已达 ${cfg.caps.maxTokens}`);
                 if (room.tokens.some((t) => t.id === c.token.id)) throw Error('重复棋子 ID');
-                if (c.token.asset)
-                  await storage.validateImage(
-                    await readFile(path.join(storage.assetDir, c.token.asset)),
-                    'token',
-                  );
+                if (c.token.asset) await storage.checkImage(c.token.asset, 'token');
                 room.tokens.push(c.token);
                 break;
               case 'edit': {
                 const i = room.tokens.findIndex((t) => t.id === c.token.id);
                 if (i < 0) throw Error('棋子不存在');
-                if (c.token.asset)
-                  await storage.validateImage(
-                    await readFile(path.join(storage.assetDir, c.token.asset)),
-                    'token',
-                  );
+                if (c.token.asset && c.token.asset !== room.tokens[i].asset)
+                  await storage.checkImage(c.token.asset, 'token');
                 room.tokens[i] = c.token;
                 break;
               }
@@ -498,6 +510,8 @@ export async function createSmalltable(cfg: Config) {
                 if (c.names.some((n) => !n.trim())) throw Error('名称不能为空');
                 room.names = [...new Set(c.names)];
                 break;
+              default:
+                throw Error('未实现的房间命令');
             }
             changed(true);
             snapshots();
@@ -554,7 +568,7 @@ export async function createSmalltable(cfg: Config) {
         await new Promise<void>((r) => wss.close(() => r()));
         if (server.listening) await new Promise<void>((r) => server.close(() => r()));
       } finally {
-        await credentials.close();
+        sessions.clear();
       }
     },
   };

@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { WebSocket } from 'ws';
 import sharp from 'sharp';
 import AdmZip from 'adm-zip';
-import { createSmalltable } from '../src/server/app.js';
+import { createSmalltable } from './helpers.js';
 import { config } from '../src/server/config.js';
 import type { ServerEvent } from '../src/shared/model.js';
 process.env.ROOM_PASSWORD = 'test-room';

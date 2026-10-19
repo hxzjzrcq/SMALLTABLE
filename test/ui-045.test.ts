@@ -39,6 +39,7 @@ test('pointer line preview stays local, release submits once, cancel/pinch do no
     onSelect: () => {},
     actions,
     tool: 'draw' as const,
+    maxDrawings: 255,
     fitSignal: 0,
     epoch: 0,
     connected: true,
@@ -141,7 +142,9 @@ test('initiative panel sorts ties, toggles order, edits/deletes and hides withou
     await act(async () =>
       root.render(
         createElement(InitiativePanel, {
-          room,
+          entries: room.initiative,
+          ascending: room.initiativeAscending,
+          maxEntries: 255,
           actions,
           connected: true,
           onClose: () => {

@@ -12,6 +12,7 @@ export function Board({
   fitSignal,
   epoch,
   connected,
+  maxDrawings,
 }: {
   room: View;
   selected: string | null;
@@ -22,6 +23,7 @@ export function Board({
   fitSignal: number;
   epoch: number;
   connected: boolean;
+  maxDrawings?: number;
 }) {
   const svg = useRef<SVGSVGElement>(null),
     host = useRef<HTMLDivElement>(null);
@@ -216,7 +218,14 @@ export function Board({
       return;
     }
     const d = drag.current;
-    if (e.type !== 'pointercancel' && d?.kind === 'draw' && d.epoch === epoch && connected) {
+    if (
+      e.type !== 'pointercancel' &&
+      d?.kind === 'draw' &&
+      d.epoch === epoch &&
+      connected &&
+      maxDrawings !== undefined &&
+      room.drawings.length < maxDrawings
+    ) {
       const p = point(e);
       if (Math.hypot(p.x - d.start.x, p.y - d.start.y) * cameraRef.current.scale >= 3)
         actions.addDrawing({

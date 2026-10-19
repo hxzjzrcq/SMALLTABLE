@@ -1,0 +1,5 @@
+PASS: delete both generated directories and rebuild; browser JS/map SHA-256 are unchanged.
+PASS: JS links to source map; six runtime source contents resolve exactly to current Core source.
+PASS: all runtime source, prior tests, Core baseline files and password reset match 0.6.0; seven UPSTREAM SHA-256 values match.
+PASS: all frontend dist files match 0.6.0 byte-for-byte.
+PASS: dependency lock differs only in two project version fields.

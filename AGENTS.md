@@ -1,6 +1,6 @@
 # SMALLTABLE repository instructions
 
-Read README.md and docs/ARCHITECTURE.md before making changes. For UI work also read docs/UI.md; for dependency or deployment changes read docs/DEPENDENCIES.md. Historical files under docs/history/ are for version-specific investigation, not required current contracts.
+Read README.md and docs/ARCHITECTURE.md before making changes. For UI work also read docs/UI.md; for dependency or deployment changes read docs/DEPENDENCIES.md. Configuration lives in docs/CONFIGURATION.md; authorization, credentials and reset live in docs/SECURITY.md. Historical files under docs/history/ are for version-specific investigation, not required current contracts.
 
 ## Boundaries
 

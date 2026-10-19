@@ -1,27 +1,16 @@
+import { createDom, installDomGlobals } from './environment';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { JSDOM } from 'jsdom';
 import { act, createElement } from 'react';
 import { DEFAULT_CAPABILITIES } from '../src/shared/limits';
 import { initialRoom } from '../src/shared/model';
 
 test('effective limits appear in panels; local notes use configured UTF-8 bytes', async () => {
-  const dom = new JSDOM('<div id="root"></div>', {
+  const dom = createDom('<div id="root"></div>', {
     url: 'http://localhost',
     pretendToBeVisual: true,
   });
-  const originals = new Map<string, PropertyDescriptor | undefined>();
-  for (const [key, value] of Object.entries({
-    window: dom.window,
-    document: dom.window.document,
-    navigator: dom.window.navigator,
-    localStorage: dom.window.localStorage,
-    HTMLElement: dom.window.HTMLElement,
-    IS_REACT_ACT_ENVIRONMENT: true,
-  })) {
-    originals.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
-    Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
-  }
+  const restoreGlobals = installDomGlobals(dom, {});
   const oldFetch = globalThis.fetch;
   const { createRoot } = await import('react-dom/client');
   const { smalltable } = await import('../src/client/controller');
@@ -111,9 +100,6 @@ test('effective limits appear in panels; local notes use configured UTF-8 bytes'
     await act(async () => root.unmount());
     globalThis.fetch = oldFetch;
     dom.window.close();
-    for (const [key, desc] of originals) {
-      if (desc) Object.defineProperty(globalThis, key, desc);
-      else Reflect.deleteProperty(globalThis, key);
-    }
+    restoreGlobals();
   }
 });

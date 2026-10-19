@@ -1,3 +1,4 @@
+import { logEvent, installProcessLogging } from './log.js';
 import { existsSync } from 'node:fs';
 import type { Server } from 'node:http';
 
@@ -16,8 +17,16 @@ function listen(server: Server, port: number, host: string) {
     server.listen(port, host);
   });
 }
+installProcessLogging();
+logEvent('process.starting');
+
 async function main() {
-  if (existsSync('.env')) process.loadEnvFile('.env');
+  try {
+    if (existsSync('.env')) process.loadEnvFile('.env');
+  } catch (error) {
+    logEvent('config.load_failed', { error });
+    throw error;
+  }
   const { config } = await import('./config.js');
   const { openSmalltable } = await import('./bootstrap.js');
   const cfg = config();
@@ -27,42 +36,45 @@ async function main() {
   });
   let stopping: Promise<void> | undefined;
   const stop = () => (stopping ??= service.close());
-  const onSignal = () => {
+  const onSignal = (signal: 'SIGTERM' | 'SIGINT') => {
+    if (stopping) return;
+    logEvent('process.stopping', { signal });
     void stop()
-      .then(() => process.exit(0))
+      .then(() => {
+        logEvent('process.stopped');
+        process.exit(0);
+      })
       .catch((error: unknown) => {
-        console.error('停止服务失败：', error instanceof Error ? error.message : '未知错误');
+        logEvent('process.shutdown_failed', { error });
         process.exit(1);
       });
   };
-  process.on('SIGTERM', onSignal);
-  process.on('SIGINT', onSignal);
+  const onTerm = () => onSignal('SIGTERM');
+  const onInt = () => onSignal('SIGINT');
+  process.on('SIGTERM', onTerm);
+  process.on('SIGINT', onInt);
   try {
     await listen(service.server, cfg.port, cfg.host);
   } catch (error) {
-    process.off('SIGTERM', onSignal);
-    process.off('SIGINT', onSignal);
+    process.off('SIGTERM', onTerm);
+    process.off('SIGINT', onInt);
     // Keep the original bind error as the primary diagnostic even if cleanup fails.
     try {
       await stop();
     } catch (cleanup) {
-      console.error(
-        '启动失败后的清理失败：',
-        cleanup instanceof Error ? cleanup.message : '未知错误',
-      );
+      logEvent('process.shutdown_failed', { error: cleanup });
     }
     throw error;
   }
   service.server.on('error', (error) => {
-    console.error('服务器运行错误：', error.message);
-    void stop().finally(() => process.exit(1));
+    logEvent('server.error', { error });
+    void stop()
+      .catch((error: unknown) => logEvent('process.shutdown_failed', { error }))
+      .finally(() => process.exit(1));
   });
-  console.log(`SMALLTABLE: http://${cfg.host}:${cfg.port}`);
+  logEvent('process.started', { port: cfg.port });
 }
 main().catch((error: unknown) => {
-  const code = (error as NodeJS.ErrnoException)?.code;
-  console.error(
-    `启动失败${code ? ' [' + code + ']' : ''}：${error instanceof Error ? error.message : '未知错误'}`,
-  );
+  logEvent('process.startup_failed', { error });
   process.exitCode = 1;
 });

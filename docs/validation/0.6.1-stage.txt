@@ -1,0 +1,21 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> smalltable@0.6.1 test:stage
+> node --import tsx --test test/dndroll-integration.test.ts test/camera.test.ts test/notes.test.ts test/embedded-tool-ui.test.ts
+
+✔ touch zoom buttons preserve the center anchor and clamp scaling (1.101806ms)
+✔ two-finger gesture preserves its world anchor while midpoint pans (0.295777ms)
+✔ vendored Core source is byte-identical to the supplied DNDROLL 0.4 source (10.315435ms)
+✔ built tool entry and CSP allow same-origin embedding without modifying room state (6139.963615ms)
+✔ embedded UI completes a Core-backed session; modal preserves frame and filters activity messages (200.161253ms)
+✔ notes byte limit preserves previous saved content, including multibyte input (1.1573ms)
+✔ notes storage errors propagate so the interface can report failure (0.310479ms)
+✔ rebranding preserves legacy local notes and explicit empty new notes stay empty (0.175966ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6573.561542

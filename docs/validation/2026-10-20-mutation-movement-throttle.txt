@@ -1,0 +1,25 @@
+✖ movement publishes intermediate positions across throttle windows and accepts final placement within the window (548.918193ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1134.062734
+
+✖ failing tests:
+
+test at test/movement-integration.test.ts:1:2936
+✖ movement publishes intermediate positions across throttle windows and accepts final placement within the window (548.918193ms)
+  AssertionError [ERR_ASSERTION]: unexpected burst broadcasts: 13
+      at TestContext.<anonymous> (<mutation-workspace>/movement-throttle/test/movement-integration.test.ts:132:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

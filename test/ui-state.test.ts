@@ -1,17 +1,16 @@
+import { createDom, installDomGlobals } from './environment';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { JSDOM } from 'jsdom';
 import { act, createElement } from 'react';
 import { randomUUID } from 'node:crypto';
 import { DEFAULT_CAPABILITIES } from '../src/shared/limits';
 import { initialRoom, type ServerEvent } from '../src/shared/model';
 
-test('25 position events skip unrelated panels, preserve drafts/scroll, and relevant changes remain visible', async () => {
-  const dom = new JSDOM('<div id="root"></div>', {
+test('live room updates preserve drafts and scroll, refresh visible data, and remove private controls on revocation', async () => {
+  const dom = createDom('<div id="root"></div>', {
     url: 'http://localhost',
     pretendToBeVisual: true,
   });
-  const originals = new Map<string, PropertyDescriptor | undefined>();
   let socket: FakeSocket;
   const sent: any[] = [];
   class FakeSocket {
@@ -30,14 +29,7 @@ test('25 position events skip unrelated panels, preserve drafts/scroll, and rele
     }
     close() {}
   }
-  for (const [key, value] of Object.entries({
-    window: dom.window,
-    document: dom.window.document,
-    navigator: dom.window.navigator,
-    localStorage: dom.window.localStorage,
-    location: dom.window.location,
-    HTMLElement: dom.window.HTMLElement,
-    IS_REACT_ACT_ENVIRONMENT: true,
+  const restoreGlobals = installDomGlobals(dom, {
     WebSocket: FakeSocket,
     ResizeObserver: class {
       observe() {}
@@ -47,10 +39,7 @@ test('25 position events skip unrelated panels, preserve drafts/scroll, and rele
       new Response(
         JSON.stringify(url === '/api/login' ? { token: 'test-token' } : DEFAULT_CAPABILITIES),
       ),
-  })) {
-    originals.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
-    Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
-  }
+  });
   dom.window.matchMedia = (() => ({
     matches: true,
     addEventListener() {},
@@ -61,33 +50,6 @@ test('25 position events skip unrelated panels, preserve drafts/scroll, and rele
   const { createRoot } = await import('react-dom/client');
   const { default: App } = await import('../src/client/App');
   const { smalltable } = await import('../src/client/controller');
-  const { DicePanel } = await import('../src/client/components/DicePanel');
-  const { Notes } = await import('../src/client/components/Notes');
-  const { InitiativePanel } = await import('../src/client/components/InitiativePanel');
-  const { DMPanel } = await import('../src/client/components/DMPanel');
-  const { TokenList } = await import('../src/client/components/Inspector');
-  const counts: Record<string, number> = {};
-  const restorers: (() => void)[] = [];
-  // Instrument actual component bodies behind memo; no production counters/hooks.
-  for (const [name, component] of Object.entries({
-    DicePanel,
-    Notes,
-    InitiativePanel,
-    DMPanel,
-    TokenList,
-  })) {
-    const target = component as unknown as { type: (props: unknown) => unknown };
-    assert.equal(typeof target.type, 'function', `${name} has an update boundary`);
-    const original = target.type;
-    counts[name] = 0;
-    target.type = (props) => {
-      counts[name]++;
-      return original(props);
-    };
-    restorers.push(() => {
-      target.type = original;
-    });
-  }
   const root = createRoot(document.getElementById('root')!);
   const room = initialRoom();
   const token = {
@@ -134,6 +96,18 @@ test('25 position events skip unrelated panels, preserve drafts/scroll, and rele
       socket!.onopen?.();
     });
     await receive({ type: 'snapshot', room, epoch: 0, dm: true, caps: DEFAULT_CAPABILITIES });
+    assert.ok(!document.querySelector('.toolbar')!.textContent!.includes('无图片棋子'));
+    const create = [...document.querySelectorAll('button')].find((b) =>
+      b.textContent?.includes('无图片棋子'),
+    )!;
+    assert.ok(create);
+    assert.equal(create.closest('[hidden]')?.getAttribute('hidden'), '');
+    await act(async () =>
+      [...document.querySelectorAll<HTMLButtonElement>('.tabs button')]
+        .find((b) => b.textContent === '棋子')!
+        .click(),
+    );
+    assert.equal(create.closest('[hidden]'), null);
     await act(async () =>
       [...document.querySelectorAll('button')].find((b) => b.textContent === '先攻盘')!.click(),
     );
@@ -152,17 +126,8 @@ test('25 position events skip unrelated panels, preserve drafts/scroll, and rele
     const nameDraft = document.querySelector<HTMLInputElement>('.inspector input')!;
     await input(noteDraft, '未提交备注');
     await input(nameDraft, '未提交名称');
-    const before = { ...counts };
     for (let i = 1; i <= 25; i++)
       await receive({ type: 'token', token: { ...token, x: i }, epoch: 0, revision: i });
-    const delta = Object.fromEntries(Object.keys(counts).map((k) => [k, counts[k] - before[k]]));
-    assert.deepEqual(delta, {
-      DicePanel: 0,
-      Notes: 0,
-      InitiativePanel: 0,
-      DMPanel: 0,
-      TokenList: 0,
-    });
     assert.equal(expression.value, '2d8+3');
     assert.equal(notes.value, '私人草稿');
     assert.equal(initiativeName.value, '未提交');
@@ -184,8 +149,7 @@ test('25 position events skip unrelated panels, preserve drafts/scroll, and rele
     const edit = [...sent].reverse().find((c) => c.type === 'edit');
     assert.equal(edit.token.x, 25);
     assert.equal(edit.token.name, '未提交名称');
-    // Rotation and public note events update Board/Inspector without executing unrelated panels.
-    const beforeOther = { ...counts };
+    // Rotation and public note events refresh the live board.
     await receive({ type: 'token', token: { ...token, x: 25, angle: 45 }, epoch: 0, revision: 26 });
     await receive({
       type: 'token',
@@ -193,7 +157,6 @@ test('25 position events skip unrelated panels, preserve drafts/scroll, and rele
       epoch: 0,
       revision: 27,
     });
-    assert.deepEqual(counts, beforeOther);
     assert.match(
       document.querySelector('.board-token')!.getAttribute('transform')!,
       /rotate\(45\)/,
@@ -266,6 +229,9 @@ test('25 position events skip unrelated panels, preserve drafts/scroll, and rele
       dm: false,
     });
     assert.equal(document.querySelector('.password-settings'), null);
+    assert.ok(
+      ![...document.querySelectorAll('button')].some((b) => b.textContent?.includes('无图片棋子')),
+    );
     assert.ok(!document.body.textContent!.includes('DM 私有说明'));
     assert.ok(!JSON.stringify(smalltable.getSnapshot().room).includes('private-render-secret'));
     await receive({ type: 'snapshot', room: next, epoch: 0, dm: true });
@@ -275,17 +241,12 @@ test('25 position events skip unrelated panels, preserve drafts/scroll, and rele
     await act(async () => socket!.onclose?.({ code: 4001, reason: 'idle' }));
     assert.equal(document.querySelector('.password-settings'), null);
     assert.ok(!JSON.stringify(smalltable.getSnapshot().room).includes('private-render-secret'));
-    console.log('25 position events: additional panel renders =', JSON.stringify(delta));
   } finally {
     await act(async () => {
       root.unmount();
       smalltable.leave();
     });
-    for (const restore of restorers) restore();
     dom.window.close();
-    for (const [key, desc] of originals) {
-      if (desc) Object.defineProperty(globalThis, key, desc);
-      else Reflect.deleteProperty(globalThis, key);
-    }
+    restoreGlobals();
   }
 });

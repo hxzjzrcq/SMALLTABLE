@@ -1,0 +1,30 @@
+✖ HTTP/WS authorization, lock/disconnect and serialized outputs preserve security boundaries (390.375884ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1018.109142
+
+✖ failing tests:
+
+test at test/security-http.test.ts:1:493
+✖ HTTP/WS authorization, lock/disconnect and serialized outputs preserve security boundaries (390.375884ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  200 !== 400
+
+      at deniedHttp (<mutation-workspace>/restore-authorization/test/security-http.test.ts:100:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (<mutation-workspace>/restore-authorization/test/security-http.test.ts:113:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 400,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

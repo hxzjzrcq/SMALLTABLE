@@ -1,94 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, readFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { WebSocket } from 'ws';
-import sharp from 'sharp';
 import AdmZip from 'adm-zip';
-import { createSmalltable } from './helpers.js';
-import { config } from '../src/server/config.js';
-import type { ServerEvent } from '../src/shared/model.js';
-process.env.ROOM_PASSWORD = 'test-room';
-process.env.DM_PASSWORD = 'test-dm-55';
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
-class Peer {
-  events: ServerEvent[] = [];
-  ws: WebSocket;
-  token: string;
-  constructor(url: string, token: string) {
-    this.token = token;
-    this.ws = new WebSocket(url.replace('http', 'ws') + '/ws', ['tabletop', token]);
-    this.ws.on('message', (d) => this.events.push(JSON.parse(d.toString())));
-    this.ws.on('error', () => {});
-  }
-  send(c: unknown) {
-    this.ws.send(JSON.stringify(c));
-  }
-  async wait(predicate: (e: ServerEvent) => boolean, after = 0) {
-    const until = Date.now() + 5000;
-    while (Date.now() < until) {
-      const event = this.events.slice(after).find(predicate);
-      if (event) return event;
-      await delay(10);
-    }
-    throw Error('Timed out waiting for event: ' + JSON.stringify(this.events.slice(-2)));
-  }
-}
-async function setup() {
-  const dir = await mkdtemp(path.join(tmpdir(), 'tabletop-'));
-  const cfg = { ...config(), dataDir: dir };
-  const service = await createSmalltable(cfg);
-  await new Promise<void>((r) => service.server.listen(0, '127.0.0.1', r));
-  const port = (service.server.address() as { port: number }).port,
-    url = `http://127.0.0.1:${port}`;
-  const peers: Peer[] = [];
-  async function login(address = url) {
-    const res = await fetch(address + '/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: 'test-room' }),
-    });
-    return { res, body: await res.json() };
-  }
-  async function peer() {
-    const { res, body } = await login();
-    assert.equal(res.status, 200);
-    const p = new Peer(url, body.token);
-    peers.push(p);
-    await p.wait((e) => e.type === 'snapshot');
-    return p;
-  }
-  return {
-    dir,
-    cfg,
-    service,
-    url,
-    peer,
-    login,
-    async cleanup() {
-      for (const p of peers) p.ws.terminate();
-      await service.close();
-      await rm(dir, { recursive: true, force: true });
-    },
-  };
-}
-const makeToken = () => ({
-  id: randomUUID(),
-  name: '骷髅',
-  label: '1',
-  shape: 'circle' as const,
-  color: '#3872a4',
-  x: 64,
-  y: 64,
-  size: 1,
-  angle: 0,
-  asset: null,
-  note: '公开',
-  secret: '只给 DM 的秘密',
-});
-
+import { roomFixture as setup, makeToken } from './room-fixture';
 import {
   initialRoom,
   parseRoom,

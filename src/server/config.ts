@@ -1,3 +1,4 @@
+import { logEvent } from './log.js';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { z } from 'zod';
@@ -56,7 +57,7 @@ const legacySettings = {
   TOKEN_BYTES: 'images.tokenBytes',
   TOKEN_EDGE: 'images.tokenEdge',
 };
-export function config(file = process.env.SMALLTABLE_CONFIG ?? 'smalltable.config.json') {
+function loadConfig(file: string) {
   const legacy = Object.keys(legacySettings).filter((key) => process.env[key] !== undefined);
   if (legacy.length)
     throw Error(
@@ -102,5 +103,13 @@ export function config(file = process.env.SMALLTABLE_CONFIG ?? 'smalltable.confi
     cookieSecure: process.env.COOKIE_SECURE === 'true',
     caps,
   };
+}
+export function config(file = process.env.SMALLTABLE_CONFIG ?? 'smalltable.config.json') {
+  try {
+    return loadConfig(file);
+  } catch (error) {
+    logEvent('config.load_failed', { error });
+    throw error;
+  }
 }
 export type Config = ReturnType<typeof config>;

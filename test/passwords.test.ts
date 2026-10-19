@@ -1,3 +1,4 @@
+import { waitEvent } from './helpers';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, readFile, writeFile, mkdir } from 'node:fs/promises';
@@ -9,11 +10,14 @@ import AdmZip from 'adm-zip';
 import { CredentialStore, validatePassword } from '../src/server/credentials.js';
 import { createSmalltable } from './helpers.js';
 import { config } from '../src/server/config.js';
-import type { ServerEvent } from '../src/shared/model.js';
+import { ServerEvent } from '../src/shared/model.js';
+
 const roomPassword = 'Room-055-Start',
   dmPassword = 'Keeper-055-Start';
+
 const nextRoom = 'Room-055-Next',
   nextDM = 'Keeper-055-Next';
+
 const directory = () => mkdtemp(path.join(tmpdir(), 'smalltable-passwords-'));
 
 test('password policy: categories, Unicode length, controls and exact case-insensitive blocklist', () => {
@@ -40,6 +44,7 @@ test('password policy: categories, Unicode length, controls and exact case-insen
   ])
     assert.doesNotThrow(() => validatePassword(value));
 });
+
 test('initialization fails closed; independent salted credentials persist; reset is offline and preserves room data', async () => {
   const dir = await directory();
   let store: CredentialStore | undefined;
@@ -139,12 +144,7 @@ async function setup() {
     ws.on('message', (d) => events.push(JSON.parse(d.toString())));
     await once(ws, 'open');
     const wait = async (predicate: (e: ServerEvent) => boolean, mark = 0) => {
-      for (let i = 0; i < 500; i++) {
-        const e = events.slice(mark).find(predicate);
-        if (e) return e;
-        await new Promise((r) => setTimeout(r, 10));
-      }
-      throw Error('Expected event did not arrive');
+      return waitEvent(events, predicate, mark);
     };
     await wait((e) => e.type === 'snapshot');
     return {
@@ -189,6 +189,7 @@ async function setup() {
     },
   };
 }
+
 test('HTTP authorization, fresh DM verification, strict request shape, validation and rate limit', async () => {
   const s = await setup();
   try {
@@ -216,6 +217,7 @@ test('HTTP authorization, fresh DM verification, strict request shape, validatio
     await s.close();
   }
 });
+
 test('DM rotation revokes all DM privileges; room rotation disconnects all and invalidates pending tokens; reboot and backup restore preserve new secrets', async () => {
   const s = await setup();
   try {

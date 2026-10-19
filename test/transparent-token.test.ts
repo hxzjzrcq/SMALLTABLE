@@ -1,28 +1,19 @@
+import { createDom, installDomGlobals } from './environment';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { JSDOM } from 'jsdom';
 import { act, createElement } from 'react';
 import { Board } from '../src/client/components/Board';
-import type { SmalltableClient } from '../src/client/controller';
+import { SmalltableClient } from '../src/client/controller';
 import { initialRoom } from '../src/shared/model';
 
 test('transparent image hit rectangle supports selecting, dragging and rotation; plain token shape remains', async () => {
-  const dom = new JSDOM('<div id="root"></div>', { url: 'http://localhost' });
-  const previous = new Map<string, PropertyDescriptor | undefined>();
-  for (const [key, value] of Object.entries({
-    window: dom.window,
-    document: dom.window.document,
-    navigator: dom.window.navigator,
-    localStorage: dom.window.localStorage,
-    IS_REACT_ACT_ENVIRONMENT: true,
+  const dom = createDom('<div id="root"></div>', { url: 'http://localhost' });
+  const restoreGlobals = installDomGlobals(dom, {
     ResizeObserver: class {
       observe() {}
       disconnect() {}
     },
-  })) {
-    previous.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
-    Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
-  }
+  });
   dom.window.SVGElement.prototype.setPointerCapture = () => {};
   const { createRoot } = await import('react-dom/client');
   const root = createRoot(document.getElementById('root')!);
@@ -98,9 +89,6 @@ test('transparent image hit rectangle supports selecting, dragging and rotation;
   } finally {
     await act(async () => root.unmount());
     dom.window.close();
-    for (const [key, value] of previous) {
-      if (value) Object.defineProperty(globalThis, key, value);
-      else Reflect.deleteProperty(globalThis, key);
-    }
+    restoreGlobals();
   }
 });

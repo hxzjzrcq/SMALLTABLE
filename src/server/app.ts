@@ -1,3 +1,4 @@
+import { logEvent } from './log.js';
 import express, { type Request } from 'express';
 import { createServer } from 'node:http';
 import { randomBytes, randomInt, randomUUID } from 'node:crypto';
@@ -58,6 +59,7 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
     perMessageDeflate: false,
     handleProtocols: () => 'tabletop',
   });
+  wss.on('error', (error) => logEvent('websocket.error', { error }));
   let pending: ReturnType<typeof setTimeout> | undefined,
     dirty = false,
     closed = false,
@@ -72,6 +74,7 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
   const send = (s: Session, event: ServerEvent) => {
     if (s.ws?.readyState !== WebSocket.OPEN) return;
     if (s.ws.bufferedAmount > 1024 * 1024) {
+      logEvent('websocket.rejected', { reason: 'slow_client' });
       s.ws.close(4008, '连接过慢，请重连');
       return;
     }
@@ -109,7 +112,7 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
     } catch (e) {
       dirty = true;
       saveError = true;
-      console.error('保存失败', e);
+      logEvent('storage.save_failed', { error: e });
       broadcast({ type: 'error', message: '服务器保存失败，尚未安全落盘' });
     }
   }
@@ -151,7 +154,15 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
   });
   const requireHttp = (req: Request, operation: HttpOperation) => {
     const s = auth(req);
-    if (!canHttp(s, operation)) throw Error('需要有效会话及对应权限');
+    if (!canHttp(s, operation)) {
+      if (
+        !['GET /api/config', 'POST /api/login', 'GET /api/health', 'GET /media/:id'].includes(
+          operation,
+        )
+      )
+        logEvent('auth.dm_failed', { reason: 'denied' });
+      throw Error('需要有效会话及对应权限');
+    }
     return s;
   };
   app.get('/api/config', (req, res) => {
@@ -161,18 +172,28 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
   app.post('/api/login', express.json({ limit: '2kb' }), async (req, res, next) => {
     try {
       requireHttp(req, 'POST /api/login');
-      if (!loginLimiter.take(req.socket.remoteAddress ?? ''))
+      if (!loginLimiter.take(req.socket.remoteAddress ?? '')) {
+        logEvent('rate_limit.triggered', { scope: 'login' });
         return res.status(429).json({ error: '尝试过于频繁，请稍后重试' });
-      if (sessions.size >= cfg.caps.maxSeats)
+      }
+      if (sessions.size >= cfg.caps.maxSeats) {
+        logEvent('auth.login_failed', { reason: 'capacity' });
         return res.status(409).json({ error: '房间人数已满' });
+      }
       const generation = credentialGeneration;
-      if (!(await credentials.roomMatches(req.body?.password)))
+      if (!(await credentials.roomMatches(req.body?.password))) {
+        logEvent('auth.login_failed', { reason: 'invalid_credentials' });
         return res.status(403).json({ error: '房间密码错误' });
-      if (generation !== credentialGeneration)
+      }
+      if (generation !== credentialGeneration) {
+        logEvent('auth.login_failed', { reason: 'credentials_changed' });
         return res.status(403).json({ error: '房间口令已更换，请重新进入' });
+      }
       // Capacity checked again after asynchronous password verification.
-      if (sessions.size >= cfg.caps.maxSeats)
+      if (sessions.size >= cfg.caps.maxSeats) {
+        logEvent('auth.login_failed', { reason: 'capacity' });
         return res.status(409).json({ error: '房间人数已满' });
+      }
       const id = randomBytes(32).toString('hex');
       const now = Date.now();
       sessions.set(id, {
@@ -203,18 +224,28 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
   });
   const requireDM = (req: Request, operation: HttpOperation) => {
     const s = requireHttp(req, operation);
-    if (!s?.ws) throw Error('需要解锁 DM 工具箱');
+    if (!s?.ws) {
+      logEvent('auth.dm_failed', { reason: 'denied' });
+      throw Error('需要解锁 DM 工具箱');
+    }
     return s;
   };
   app.post('/api/passwords', express.json({ limit: '4kb' }), async (req, res, next) => {
     try {
       requireDM(req, 'POST /api/passwords');
-      if (!dmLimiter.take(req.socket.remoteAddress ?? ''))
+      if (!dmLimiter.take(req.socket.remoteAddress ?? '')) {
+        logEvent('rate_limit.triggered', { scope: 'password_change' });
         throw Error('密码尝试过于频繁，请稍后重试');
+      }
       const input = passwordChangeSchema.parse(req.body);
       await enqueue(async () => {
         requireDM(req, 'POST /api/passwords');
-        await credentials.change(input);
+        try {
+          await credentials.change(input);
+        } catch (error) {
+          logEvent('auth.dm_failed', { error, scope: 'password_change' });
+          throw error;
+        }
         if (input.roomPassword !== undefined) {
           credentialGeneration++;
           for (const s of sessions.values()) {
@@ -253,7 +284,10 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
     (req, res, next) => {
       try {
         requireDM(req, 'POST /api/restore');
-        if (!uploadLimiter.take(auth(req)!.id)) throw Error('上传过于频繁');
+        if (!uploadLimiter.take(auth(req)!.id)) {
+          logEvent('rate_limit.triggered', { scope: 'upload' });
+          throw Error('上传过于频繁');
+        }
         next();
       } catch (e) {
         next(e);
@@ -269,7 +303,12 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
           await prepared.commitAssets();
           const nextRoom = prepared.room;
           nextRoom.revision = room.revision + 1;
-          await storage.save(nextRoom);
+          try {
+            await storage.save(nextRoom);
+          } catch (error) {
+            logEvent('storage.save_failed', { error });
+            throw error;
+          }
           room = nextRoom;
           savedRevision = room.revision;
           epoch++;
@@ -290,7 +329,10 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
       try {
         requireDM(req, 'POST /api/image/:kind');
         if (!['map', 'token'].includes(String(req.params.kind))) throw Error('未知图片用途');
-        if (!uploadLimiter.take(auth(req)!.id)) throw Error('上传过于频繁');
+        if (!uploadLimiter.take(auth(req)!.id)) {
+          logEvent('rate_limit.triggered', { scope: 'upload' });
+          throw Error('上传过于频繁');
+        }
         next();
       } catch (e) {
         next(e);
@@ -335,7 +377,12 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
   });
   app.use(express.static(path.resolve('dist')));
   app.get('/', (_req, res) => res.sendFile(path.resolve('dist/index.html')));
-  app.use((err: Error, _req: Request, res: express.Response, _next: express.NextFunction) => {
+  app.use((err: Error, req: Request, res: express.Response, _next: express.NextFunction) => {
+    const route = req.route?.path;
+    if (route === '/api/restore') logEvent('backup.restore_failed', { error: err });
+    else if (route === '/api/backup') logEvent('backup.create_failed', { error: err });
+    else if (route === '/api/image/:kind') logEvent('image.process_failed', { error: err });
+    else if (route === '/api/login') logEvent('auth.login_failed', { error: err });
     res.status(400).json({ error: err.message || '请求失败' });
   });
   server.on('upgrade', (req, socket, head) => {
@@ -344,6 +391,7 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
       .map((x) => x.trim());
     const s = sessions.get(protocols[1] ?? '');
     if (req.url !== '/ws' || !originOK(req) || protocols[0] !== 'tabletop' || !s || s.ws) {
+      logEvent('websocket.rejected', { reason: 'denied' });
       socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
       socket.destroy();
       return;
@@ -353,7 +401,7 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
       s.alive = true;
       snapshot(s);
       presence();
-      ws.on('error', () => {});
+      ws.on('error', (error) => logEvent('websocket.error', { error }));
       ws.on('pong', () => (s.alive = true));
       ws.on('close', () => {
         if (s.ws === ws) {
@@ -365,23 +413,39 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
       ws.on('message', (data, isBinary) => {
         // Reject floods before they can occupy the serialized mutation queue.
         if (isBinary || !s.limiter.take('all')) {
+          if (isBinary) logEvent('websocket.rejected', { reason: 'binary' });
+          else logEvent('rate_limit.triggered', { scope: 'ws' });
           send(s, { type: 'error', message: '消息过快或格式无效' });
           return;
         }
         void enqueue(async () => {
           if (!sessions.has(s.id) || closed) return;
           try {
-            const c = commandSchema.parse(JSON.parse(data.toString()));
-            if (!canCommand(s, c.type)) throw Error('操作未授权');
+            let c;
+            try {
+              c = commandSchema.parse(JSON.parse(data.toString()));
+            } catch (error) {
+              logEvent('websocket.rejected', { reason: 'invalid_command' });
+              throw error;
+            }
+            if (!canCommand(s, c.type)) {
+              logEvent('auth.dm_failed', { reason: 'denied', scope: 'ws' });
+              throw Error('操作未授权');
+            }
             if (c.type === 'activity') {
               s.lastActivity = Date.now();
               s.warned = false;
               return;
             }
             if (c.type === 'unlock') {
-              if (!dmLimiter.take(req.socket.remoteAddress ?? ''))
+              if (!dmLimiter.take(req.socket.remoteAddress ?? '')) {
+                logEvent('rate_limit.triggered', { scope: 'dm' });
                 throw Error('DM 密码尝试过于频繁');
-              if (!(await credentials.dmMatches(c.password))) throw Error('DM 密码错误');
+              }
+              if (!(await credentials.dmMatches(c.password))) {
+                logEvent('auth.dm_failed', { reason: 'invalid_credentials' });
+                throw Error('DM 密码错误');
+              }
               s.dm = true;
               snapshot(s);
               return;
@@ -423,7 +487,10 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
               return;
             }
             if (c.type === 'roll') {
-              if (!s.rollLimiter.take('roll')) throw Error('投骰过于频繁');
+              if (!s.rollLimiter.take('roll')) {
+                logEvent('rate_limit.triggered', { scope: 'roll' });
+                throw Error('投骰过于频繁');
+              }
               if (!room.names.includes(c.name)) throw Error('请选择名单中的显示名称');
               room.rolls.push({
                 id: randomUUID(),
@@ -543,6 +610,7 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
         });
       }
       if (!s.alive) {
+        logEvent('websocket.rejected', { reason: 'heartbeat' });
         s.ws.terminate();
         continue;
       }

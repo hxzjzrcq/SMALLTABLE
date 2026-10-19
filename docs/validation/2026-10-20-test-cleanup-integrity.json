@@ -1,0 +1,9 @@
+{
+  "baselineSha256": "da7eaf42c86a63f300951ce2d2d52a4acbf026bb0248a974935056b3efbe191b",
+  "protectedFilesUnchanged": 95,
+  "roomTests": 66,
+  "coreTests": 97,
+  "stageSubsetTests": 8,
+  "mutationChecksDetected": 5,
+  "packageChanges": ["scripts.test:stage"]
+}

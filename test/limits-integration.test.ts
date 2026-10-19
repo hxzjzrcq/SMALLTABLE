@@ -1,191 +1,24 @@
-import { testStorage } from './helpers';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import AdmZip from 'adm-zip';
 import { WebSocket } from 'ws';
-import { config, backupLimits } from '../src/server/config';
-import { createSmalltable } from './helpers';
+import { config } from '../src/server/config';
+import { createLimitsRoom as createSmalltable } from './support/limits-fixture';
 import { DEFAULT_CAPABILITIES } from '../src/shared/limits';
+import { initialRoom, type ServerEvent, parseRoom } from '../src/shared/model';
+import { token, drawing, Peer } from './support/limits-fixture';
 import {
-  createRoomSchema,
-  createCommandSchema,
-  initialRoom,
-  type ServerEvent,
-} from '../src/shared/model';
-import { readNotes, writeNotes } from '../src/client/notes-store';
-process.env.ROOM_PASSWORD = 'test-room';
-process.env.DM_PASSWORD = 'test-dm-55';
-const token = (asset: string | null = null) => ({
-  id: randomUUID(),
-  name: 'A',
-  label: '',
-  shape: 'circle' as const,
-  color: '#000000',
-  x: 0,
-  y: 0,
-  size: 1,
-  angle: 0,
-  asset,
-  note: '',
-  secret: '',
-});
-const drawing = () => ({ id: randomUUID(), x1: 0, y1: 0, x2: 1, y2: 1, color: '#202b36' as const });
-const roll = () => ({
-  id: randomUUID(),
-  name: 'A',
-  expression: 'd6',
-  dice: [],
-  result: 1,
-  time: new Date().toISOString(),
-});
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-test('JSON partial overrides, defaults, >15 seats, invalid fields and obsolete URL', async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), 'st-config-'));
-  const file = path.join(dir, 'settings.json');
-  try {
-    await writeFile(
-      file,
-      JSON.stringify({
-        limits: { players: 23, tokens: 300, privateNotesBytes: 9 },
-        images: { tokenEdge: 512 },
-        session: { idleMinutes: 2 },
-      }),
-    );
-    process.env.DNDROLL_URL = 'unused-invalid-url';
-    const c = config(file);
-    assert.equal(c.caps.maxSeats, 23);
-    assert.equal(c.caps.maxTokens, 300);
-    assert.equal(c.caps.maxNotesBytes, 9);
-    assert.equal(c.caps.tokenEdge, 512);
-    assert.equal(c.caps.idleMs, 120000);
-    assert.equal(c.caps.maxDrawings, 255);
-    assert.ok(!('dndrollUrl' in c.caps));
-    for (const value of [0, -1, 1.5, '3', Number.MAX_SAFE_INTEGER]) {
-      await writeFile(file, JSON.stringify({ limits: { tokens: value } }));
-      assert.throws(() => config(file), /配置/);
-    }
-    await writeFile(file, '{');
-    assert.throws(() => config(file), /配置/);
-    await writeFile(file, '{"limits":{"toknes":3}}');
-    assert.throws(() => config(file), /toknes/);
-    await writeFile(file, '{}');
-    assert.deepEqual(config(file).caps, DEFAULT_CAPABILITIES);
-    assert.throws(() => config(path.join(dir, 'missing.json')), /无法读取配置/);
-  } finally {
-    delete process.env.DNDROLL_URL;
-    await rm(dir, { recursive: true, force: true });
-  }
-});
-
-test('independent non-default schema limits, byte limits, and values above 255', () => {
-  const caps = {
-    ...DEFAULT_CAPABILITIES,
-    maxTokens: 3,
-    maxInitiative: 4,
-    maxDrawings: 5,
-    maxRolls: 2,
-    maxNames: 6,
-  };
-  const schema = createRoomSchema(caps);
-  const room = {
-    ...initialRoom(),
-    tokens: Array.from({ length: 3 }, () => token()),
-    initiative: Array.from({ length: 4 }, () => ({ id: randomUUID(), name: 'A', value: 1 })),
-    drawings: Array.from({ length: 5 }, drawing),
-    rolls: Array.from({ length: 2 }, roll),
-    names: Array.from({ length: 6 }, (_, i) => String(i)),
-  };
-  assert.ok(schema.safeParse(room).success);
-  for (const key of ['tokens', 'initiative', 'drawings', 'rolls', 'names'] as const) {
-    const extra =
-      key === 'tokens'
-        ? token()
-        : key === 'drawings'
-          ? drawing()
-          : key === 'rolls'
-            ? roll()
-            : key === 'names'
-              ? 'extra'
-              : { id: randomUUID(), name: 'B', value: 2 };
-    assert.equal(schema.safeParse({ ...room, [key]: [...room[key], extra] }).success, false, key);
-  }
-  assert.equal(
-    createCommandSchema(caps).safeParse({ type: 'names', names: Array(7).fill('A') }).success,
-    false,
-  );
-  assert.ok(
-    createRoomSchema({ ...caps, maxTokens: 300 }).safeParse({
-      ...initialRoom(),
-      tokens: Array.from({ length: 300 }, () => token()),
-    }).success,
-  );
-  let saved = '';
-  const store = {
-    getItem: () => saved,
-    setItem: (_k: string, v: string) => {
-      saved = v;
-    },
-  };
-  writeNotes(store, '中文', 6);
-  assert.equal(readNotes(store), '中文');
-  assert.throws(() => writeNotes(store, '中文a', 6), /6 字节/);
-  assert.equal(saved, '中文');
-  writeNotes(store, 'a'.repeat(70000), 70000);
-  assert.equal(saved.length, 70000);
-});
-
-test('restore and disk load apply deployment limits; backup budgets grow with limits', async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), 'st-restore-'));
-  const cfg = { ...config(), dataDir: dir, caps: { ...DEFAULT_CAPABILITIES, maxTokens: 300 } };
-  const storage = testStorage(cfg);
-  try {
-    await storage.load();
-    const room = { ...initialRoom(), tokens: Array.from({ length: 300 }, () => token()) };
-    await storage.save(room);
-    assert.equal((await storage.load())?.tokens.length, 300);
-    const zip = await storage.backup(room);
-    const restored = await storage.prepareRestore(zip);
-    assert.equal(restored.room.tokens.length, 300);
-    const low = testStorage({ ...cfg, caps: { ...cfg.caps, maxTokens: 3 } });
-    await assert.rejects(() => low.load(), /存档损坏/);
-    await assert.rejects(() => low.prepareRestore(zip));
-    const limits = backupLimits(cfg.caps);
-    assert.equal(limits.entries, 302);
-    assert.ok(limits.bytes > backupLimits({ ...cfg.caps, maxTokens: 3 }).bytes);
-    const excess = new AdmZip();
-    excess.addFile('room.json', Buffer.from(JSON.stringify(initialRoom())));
-    excess.addFile('extra.txt', Buffer.from('x'));
-    await assert.rejects(() => storage.prepareRestore(excess.toBuffer()), /路径/);
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
-});
-
-class Peer {
-  events: ServerEvent[] = [];
-  constructor(readonly ws: WebSocket) {
-    ws.on('message', (d) => this.events.push(JSON.parse(d.toString())));
-    ws.on('error', () => {});
-  }
-  async until(predicate: (e: ServerEvent) => boolean, after = 0) {
-    const end = Date.now() + 5000;
-    while (Date.now() < end) {
-      const e = this.events.slice(after).find(predicate);
-      if (e) return e;
-      await wait(10);
-    }
-    throw Error('event timeout: ' + JSON.stringify(this.events.slice(-2)));
-  }
-  send(c: unknown) {
-    this.ws.send(JSON.stringify(c));
-  }
-}
+  roomPassword,
+  dmPassword,
+  token as managementToken,
+  drawing as managementDrawing,
+  fixture,
+} from './support/management-fixture';
 
 test('real API/socket limits and image edits avoid re-encoding; invalid resource replacement rejected', async () => {
   const dir = await mkdtemp(path.join(tmpdir(), 'st-runtime-'));
@@ -365,34 +198,113 @@ test('configured >15 connections are admitted and the next seat is rejected', as
   }
 });
 
-test('backup restores more than 257 entries when token configuration permits it', async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), 'st-assets-'));
-  const storage = testStorage({
-    ...config(),
-    dataDir: dir,
-    caps: { ...DEFAULT_CAPABILITIES, maxTokens: 260 },
-  });
+test('all collections exceed old defaults through live commands, disk and restore; long names command exceeds old 64 KiB wire limit', async () => {
+  const caps = {
+    ...DEFAULT_CAPABILITIES,
+    maxTokens: 260,
+    maxInitiative: 261,
+    maxDrawings: 262,
+    maxRolls: 263,
+    maxNames: 600,
+  };
+  const f = await fixture(caps);
   try {
-    await storage.load();
+    const dm = await f.peer();
+    await dm.unlock();
+    const player = await f.peer();
     const room = initialRoom();
-    for (let i = 0; i < 260; i++) {
-      const data = await sharp({
-        create: {
-          width: 1,
-          height: 1,
-          channels: 3,
-          background: { r: i % 256, g: Math.floor(i / 256), b: 0 },
-        },
-      })
-        .png()
-        .toBuffer();
-      const image = await storage.put(data, 'token');
-      room.tokens.push(token(image.asset));
+    room.tokens = Array.from({ length: 259 }, token);
+    room.initiative = Array.from({ length: 260 }, () => ({
+      id: randomUUID(),
+      name: 'I',
+      value: 1,
+    }));
+    room.drawings = Array.from({ length: 261 }, drawing);
+    room.rolls = Array.from({ length: 263 }, () => ({
+      id: randomUUID(),
+      name: '天意爷',
+      expression: '1d6',
+      dice: [],
+      result: 1,
+      time: new Date().toISOString(),
+    }));
+    const zip = await f.service.storage.backup(room);
+    assert.equal(
+      (
+        await fetch(f.url + '/api/restore', {
+          method: 'POST',
+          headers: { ...dm.headers, 'Content-Type': 'application/zip' },
+          body: new Uint8Array(zip),
+        })
+      ).status,
+      200,
+    );
+    await dm.until((e) => e.type === 'snapshot' && e.epoch === 1);
+    for (const [command, done] of [
+      [
+        { type: 'create', token: managementToken() },
+        (e: ServerEvent) => e.type === 'snapshot' && e.room.tokens.length === 260,
+      ],
+      [
+        { type: 'initiative.put', entry: { id: randomUUID(), name: 'extra', value: 2 }, epoch: 1 },
+        (e: ServerEvent) => e.type === 'snapshot' && e.room.initiative.length === 261,
+      ],
+      [
+        { type: 'drawing.add', drawing: managementDrawing(), epoch: 1 },
+        (e: ServerEvent) => e.type === 'snapshot' && e.room.drawings.length === 262,
+      ],
+      [
+        { type: 'roll', name: '天意爷', expression: 'd20' },
+        (e: ServerEvent) => e.type === 'snapshot' && e.room.rolls.at(-1)?.expression === '1d20',
+      ],
+    ] as const) {
+      const mark = dm.events.length;
+      dm.send(command);
+      await dm.until(done, mark);
     }
-    const zip = await storage.backup(room);
-    assert.equal(new AdmZip(zip).getEntries().length, 261);
-    assert.equal((await storage.prepareRestore(zip)).room.tokens.length, 260);
+    const names = Array.from(
+      { length: 600 },
+      (_, i) => String(i).padStart(4, '0') + 'n'.repeat(124),
+    );
+    const mark = dm.events.length;
+    assert.ok(Buffer.byteLength(JSON.stringify({ type: 'names', names })) > 65536);
+    dm.send({ type: 'names', names });
+    await dm.until((e) => e.type === 'snapshot' && e.room.names.length === 600, mark);
+    assert.equal(f.service.getRoom().rolls.length, 263);
+    await player.until((e) => e.type === 'snapshot' && e.room.names.length === 600);
+    const credentials = JSON.parse(await readFile(path.join(f.dir, 'credentials.json'), 'utf8'));
+    const exports = [
+      await (await fetch(f.url + '/api/config')).json(),
+      player.events,
+      JSON.parse(
+        new AdmZip(await f.service.storage.backup(f.service.getRoom())).readAsText('room.json'),
+      ),
+    ];
+    for (const value of exports) {
+      const text = JSON.stringify(value);
+      for (const secret of [
+        roomPassword,
+        dmPassword,
+        credentials.room.hash,
+        credentials.room.salt,
+        credentials.dm.hash,
+        credentials.dm.salt,
+        dm.session,
+        player.session,
+      ])
+        assert.ok(!text.includes(secret));
+    }
+    assert.ok(!JSON.stringify(player.events).includes('DM-private-060'));
+    const portable = await f.service.storage.backup(f.service.getRoom());
+    assert.equal((await f.service.storage.prepareRestore(portable)).room.names.length, 600);
+    await f.service.storage.save(f.service.getRoom());
+    assert.equal((await f.service.storage.load())?.tokens.length, 260);
+    const legacy = { ...room, schemaVersion: 1 } as Record<string, unknown>;
+    delete legacy.initiative;
+    delete legacy.initiativeAscending;
+    delete legacy.drawings;
+    assert.equal(parseRoom(legacy, caps).tokens.length, 259);
   } finally {
-    await rm(dir, { recursive: true, force: true });
+    await f.close();
   }
 });

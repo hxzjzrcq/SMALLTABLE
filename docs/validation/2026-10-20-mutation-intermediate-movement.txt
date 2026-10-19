@@ -1,0 +1,19 @@
+✖ movement publishes intermediate positions across throttle windows and accepts final placement within the window (5381.043679ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6074.74595
+
+✖ failing tests:
+
+test at test/movement-integration.test.ts:1:2936
+✖ movement publishes intermediate positions across throttle windows and accepts final placement within the window (5381.043679ms)
+  Error: Timed out waiting for event: [{"type":"saved","revision":0},{"type":"saved","revision":1}]
+      at waitEvent (<mutation-workspace>/intermediate-movement/test/helpers.ts:36:9)
+      at async TestContext.<anonymous> (<mutation-workspace>/intermediate-movement/test/movement-integration.test.ts:119:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)

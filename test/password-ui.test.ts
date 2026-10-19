@@ -1,26 +1,17 @@
+import { createDom, installDomGlobals } from './environment';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { JSDOM } from 'jsdom';
 import { act, createElement } from 'react';
 import { PasswordSettings } from '../src/client/components/PasswordSettings';
-import type { SmalltableClient } from '../src/client/controller';
+import { SmalltableClient } from '../src/client/controller';
 
 test('password form requires confirmation, supports separate fields and clears secrets after failures', async () => {
-  const dom = new JSDOM('<div id="root"></div>', { url: 'http://localhost' });
+  const dom = createDom('<div id="root"></div>', { url: 'http://localhost' });
   const replacements = {
-    window: dom.window,
-    document: dom.window.document,
-    navigator: dom.window.navigator,
-    HTMLElement: dom.window.HTMLElement,
-    IS_REACT_ACT_ENVIRONMENT: true,
     confirm: () => allow,
   };
-  const previous = new Map<string, PropertyDescriptor | undefined>();
   let allow = false;
-  for (const [k, v] of Object.entries(replacements)) {
-    previous.set(k, Object.getOwnPropertyDescriptor(globalThis, k));
-    Object.defineProperty(globalThis, k, { configurable: true, writable: true, value: v });
-  }
+  const restoreGlobals = installDomGlobals(dom, replacements);
   const { createRoot } = await import('react-dom/client');
   const root = createRoot(document.getElementById('root')!);
   const calls: unknown[] = [];
@@ -84,9 +75,6 @@ test('password form requires confirmation, supports separate fields and clears s
   } finally {
     await act(async () => root.unmount());
     dom.window.close();
-    for (const [k, v] of previous) {
-      if (v) Object.defineProperty(globalThis, k, v);
-      else Reflect.deleteProperty(globalThis, k);
-    }
+    restoreGlobals();
   }
 });

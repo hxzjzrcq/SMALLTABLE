@@ -1,6 +1,6 @@
 {
   "name": "smalltable",
-  "version": "0.6.0-fix",
+  "version": "0.6.1",
   "private": true,
   "type": "module",
   "engines": {
@@ -14,7 +14,7 @@
     "check": "tsc --noEmit",
     "format": "prettier --write src test scripts docs README.md package.json tsconfig.json vite.config.ts",
     "build:core": "tsc -p packages/dndroll-core/tsconfig.json && npm run build:core:browser",
-    "test:stage": "node --import tsx --test test/dndroll-integration.test.ts test/mobile.test.ts test/notes.test.ts test/ui-stage.test.ts",
+    "test:stage": "node --import tsx --test test/dndroll-integration.test.ts test/camera.test.ts test/notes.test.ts test/embedded-tool-ui.test.ts",
     "password:reset": "node --import tsx scripts/password-reset.ts",
     "build:core:browser": "node scripts/build-core-browser.mjs",
     "test:core": "node --test packages/dndroll-core/tests/*.mjs"

@@ -1,0 +1,27 @@
+[
+  {
+    "mutation": "image-authorization",
+    "detected": true,
+    "exitCode": 1
+  },
+  {
+    "mutation": "restore-authorization",
+    "detected": true,
+    "exitCode": 1
+  },
+  {
+    "mutation": "intermediate-movement",
+    "detected": true,
+    "exitCode": 1
+  },
+  {
+    "mutation": "movement-throttle",
+    "detected": true,
+    "exitCode": 1
+  },
+  {
+    "mutation": "initiative-edit",
+    "detected": true,
+    "exitCode": 1
+  }
+]

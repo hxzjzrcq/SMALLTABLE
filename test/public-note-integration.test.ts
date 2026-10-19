@@ -1,12 +1,12 @@
+import { waitEvent, createSmalltable } from './helpers';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { WebSocket } from 'ws';
-import { createSmalltable } from './helpers';
 import { config } from '../src/server/config';
-import type { ServerEvent } from '../src/shared/model';
+import { ServerEvent } from '../src/shared/model';
 
 test('public notes synchronize, persist and preserve DM-only fields', async () => {
   process.env.ROOM_PASSWORD = 'note-test-room';
@@ -17,12 +17,7 @@ test('public notes synchronize, persist and preserve DM-only fields', async () =
   const url = `http://127.0.0.1:${(service.server.address() as { port: number }).port}`;
   const peers: WebSocket[] = [];
   const wait = async (events: ServerEvent[], predicate: (e: ServerEvent) => boolean, mark = 0) => {
-    for (let i = 0; i < 500; i++) {
-      const event = events.slice(mark).find(predicate);
-      if (event) return event;
-      await new Promise((r) => setTimeout(r, 10));
-    }
-    throw Error('Expected event not received');
+    return waitEvent(events, predicate, mark);
   };
   async function peer() {
     const res = await fetch(url + '/api/login', {

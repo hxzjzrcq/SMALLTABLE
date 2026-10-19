@@ -1,6 +1,6 @@
 # 当前架构
 
-适用于 SMALLTABLE 0.6.0 及其构建修正版 060fix。运行与功能入口见 [README](../README.md)，依赖和部署约定见 [DEPENDENCIES](DEPENDENCIES.md)。
+适用于 SMALLTABLE 0.6.1。运行与功能入口见 [README](../README.md)，依赖和部署约定见 [DEPENDENCIES](DEPENDENCIES.md)。
 
 ## 模块与数据归属
 
@@ -52,3 +52,7 @@ DNDROLL 运行于独立 iframe。规则只调用 Core，房间不保存或广播
 棋子增量仍只更新 room.tokens 和 revision，保留其它切片引用。面板只接收所需切片，memo 和稳定回调阻断无关执行；TokenList 只比较其实际显示字段、顺序、选中状态与限额。没有新增 store 或状态库。具体草稿、挂载和撤权约定见 [UI](UI.md)。
 
 060fix 仅在构建层补齐 Core 独立浏览器脚本和 source map，未改变上述运行架构；生成命令及产物用途统一见 [依赖与构建](DEPENDENCIES.md#core-独立浏览器产物)。
+
+## 0.6.1 运行日志
+
+`src/server/log.ts` 提供固定字段的单行 JSON 日志；配置、服务入口、HTTP/WS 及存储边界调用它，不参与业务状态或存档。进程异常处理器仅由可执行入口安装。格式、事件与收集方式见 [运行日志](LOGGING.md)。测试工程整理见 [测试维护](TESTING.md)。

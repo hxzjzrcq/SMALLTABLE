@@ -1,14 +1,15 @@
+import { waitEvent, createSmalltable } from './helpers';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import sharp from 'sharp';
+import { mkdtemp, rm, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { WebSocket } from 'ws';
 import AdmZip from 'adm-zip';
-import { createSmalltable } from './helpers';
 import { config } from '../src/server/config';
-import type { ServerEvent } from '../src/shared/model';
+import { ServerEvent } from '../src/shared/model';
 
 test('HTTP/WS authorization, lock/disconnect and serialized outputs preserve security boundaries', async () => {
   const dir = await mkdtemp(path.join(tmpdir(), 'st-security-'));
@@ -21,13 +22,7 @@ test('HTTP/WS authorization, lock/disconnect and serialized outputs preserve sec
   let ws: WebSocket | undefined;
   const events: ServerEvent[] = [];
   async function until(predicate: (e: ServerEvent) => boolean, after = 0) {
-    const end = Date.now() + 5000;
-    while (Date.now() < end) {
-      const event = events.slice(after).find(predicate);
-      if (event) return event;
-      await new Promise((r) => setTimeout(r, 10));
-    }
-    throw Error('missing event');
+    return waitEvent(events, predicate, after);
   }
   function noPasswords(value: unknown) {
     const json = JSON.stringify(value);
@@ -85,26 +80,61 @@ test('HTTP/WS authorization, lock/disconnect and serialized outputs preserve sec
       await until((e) => e.type === 'error', mark);
       assert.equal(service.getRoom().revision, revision);
     }
+    const image = await sharp({
+      create: { width: 16, height: 16, channels: 4, background: '#123456' },
+    })
+      .png()
+      .toBuffer();
+    const validZip = new AdmZip();
+    validZip.addFile('room.json', Buffer.from(JSON.stringify(service.getRoom())));
+    const restoreBody = validZip.toBuffer();
     async function deniedHttp() {
+      const before = service.getRoom();
+      const assets = await readdir(path.join(dir, 'assets'));
       assert.equal((await fetch(url + '/api/backup', { headers })).status, 400);
-      for (const [route, contentType] of [
-        ['/api/restore', 'application/zip'],
-        ['/api/image/token', 'application/octet-stream'],
-      ])
+      for (const [route, contentType, body] of [
+        ['/api/restore', 'application/zip', restoreBody],
+        ['/api/image/token', 'application/octet-stream', image],
+        ['/api/image/map', 'application/octet-stream', image],
+      ] as const)
         assert.equal(
           (
             await fetch(url + route, {
               method: 'POST',
               headers: { ...headers, 'Content-Type': contentType },
-              body: new Uint8Array([0]),
+              body: new Uint8Array(body),
             })
           ).status,
           400,
         );
+      assert.deepEqual(service.getRoom(), before);
+      assert.deepEqual(await readdir(path.join(dir, 'assets')), assets);
     }
     await deniedHttp();
     ws.send(JSON.stringify({ type: 'unlock', password: dmPassword }));
     await until((e) => e.type === 'snapshot' && e.dm);
+    for (const kind of ['token', 'map']) {
+      assert.equal(
+        (
+          await fetch(url + '/api/image/' + kind, {
+            method: 'POST',
+            headers: { ...headers, 'Content-Type': 'application/octet-stream' },
+            body: new Uint8Array(image),
+          })
+        ).status,
+        200,
+      );
+    }
+    assert.equal(
+      (
+        await fetch(url + '/api/restore', {
+          method: 'POST',
+          headers: { ...headers, 'Content-Type': 'application/zip' },
+          body: new Uint8Array(restoreBody),
+        })
+      ).status,
+      200,
+    );
     ws.send(JSON.stringify({ type: 'create', token: piece }));
     await until((e) => e.type === 'snapshot' && e.room.tokens.length === 1);
     const backup = await fetch(url + '/api/backup', { headers });

@@ -1,3 +1,4 @@
+import { logEvent } from './log.js';
 import { mkdir, readFile, writeFile, rename, unlink, readdir, open, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
@@ -18,8 +19,8 @@ export class Storage {
     this.assetDir = path.join(options.dataDir, 'assets');
   }
   async load(): Promise<Room | null> {
-    await mkdir(this.assetDir, { recursive: true });
     try {
+      await mkdir(this.assetDir, { recursive: true });
       const file = path.join(this.options.dataDir, 'room.json');
       if ((await stat(file)).size > this.options.backup.roomBytes)
         throw Error('room.json 超过大小上限');
@@ -39,6 +40,7 @@ export class Storage {
         (e as NodeJS.ErrnoException).path === path.join(this.options.dataDir, 'room.json')
       )
         return null;
+      logEvent('storage.load_failed', { error: e });
       throw Error('存档损坏，拒绝覆盖；请恢复备份', { cause: e });
     }
   }
@@ -83,24 +85,34 @@ export class Storage {
     return { input, width: m.width, height: m.height, maxBytes };
   }
   async checkImage(id: string, kind: 'map' | 'token') {
-    assetId.parse(id);
-    const file = path.join(this.assetDir, id);
-    const max = kind === 'map' ? this.options.images.mapBytes : this.options.images.tokenBytes;
-    if ((await stat(file)).size > max) throw Error('图片文件超过上限');
-    const { width, height } = await this.inspectImage(await readFile(file), kind);
-    return { width, height };
+    try {
+      assetId.parse(id);
+      const file = path.join(this.assetDir, id);
+      const max = kind === 'map' ? this.options.images.mapBytes : this.options.images.tokenBytes;
+      if ((await stat(file)).size > max) throw Error('图片文件超过上限');
+      const { width, height } = await this.inspectImage(await readFile(file), kind);
+      return { width, height };
+    } catch (error) {
+      logEvent('image.process_failed', { error });
+      throw error;
+    }
   }
   async validateImage(buffer: Buffer, kind: 'map' | 'token') {
-    const { input, maxBytes } = await this.inspectImage(buffer, kind);
-    const { data, info } = await input
-      .rotate()
-      .webp({ lossless: true })
-      .toBuffer({ resolveWithObject: true });
-    // Re-encoded assets must themselves satisfy upload/restore limits.
-    const output =
-      data.length <= maxBytes ? data : await sharp(data).webp({ quality: 85 }).toBuffer();
-    if (output.length > maxBytes) throw Error('图片转码后仍超出文件限制');
-    return { data: output, width: info.width, height: info.height };
+    try {
+      const { input, maxBytes } = await this.inspectImage(buffer, kind);
+      const { data, info } = await input
+        .rotate()
+        .webp({ lossless: true })
+        .toBuffer({ resolveWithObject: true });
+      // Re-encoded assets must themselves satisfy upload/restore limits.
+      const output =
+        data.length <= maxBytes ? data : await sharp(data).webp({ quality: 85 }).toBuffer();
+      if (output.length > maxBytes) throw Error('图片转码后仍超出文件限制');
+      return { data: output, width: info.width, height: info.height };
+    } catch (error) {
+      logEvent('image.process_failed', { error });
+      throw error;
+    }
   }
   async put(buffer: Buffer, kind: 'map' | 'token') {
     const image = await this.validateImage(buffer, kind);

@@ -1,29 +1,17 @@
+import { createDom, installDomGlobals } from './environment';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { JSDOM } from 'jsdom';
 import { act, createElement } from 'react';
-import { createRoot } from 'react-dom/client';
 import DndApp from '../src/dndroll/App';
 import { AbilityTool } from '../src/client/components/AbilityTool';
-import type { SmalltableClient } from '../src/client/controller';
+import { SmalltableClient } from '../src/client/controller';
+
 test('embedded UI completes a Core-backed session; modal preserves frame and filters activity messages', async () => {
-  const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', {
+  const dom = createDom('<!doctype html><html><body><div id="root"></div></body></html>', {
     url: 'http://localhost',
   });
-  const replacements = {
-    window: dom.window,
-    document: dom.window.document,
-    navigator: dom.window.navigator,
-    localStorage: dom.window.localStorage,
-    location: dom.window.location,
-    HTMLElement: dom.window.HTMLElement,
-    IS_REACT_ACT_ENVIRONMENT: true,
-  };
-  const originals = new Map<string, PropertyDescriptor | undefined>();
-  for (const [key, value] of Object.entries(replacements)) {
-    originals.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
-    Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
-  }
+  const replacements = {};
+  const restoreGlobals = installDomGlobals(dom, replacements);
   dom.window.HTMLDialogElement.prototype.showModal = function () {
     this.setAttribute('open', '');
   };
@@ -31,6 +19,7 @@ test('embedded UI completes a Core-backed session; modal preserves frame and fil
     this.removeAttribute('open');
   };
   const container = dom.window.document.getElementById('root')!;
+  const { createRoot } = await import('react-dom/client');
   let root = createRoot(container);
   async function click(label: string) {
     const button = [...container.querySelectorAll('button')].find(
@@ -42,6 +31,7 @@ test('embedded UI completes a Core-backed session; modal preserves frame and fil
   try {
     await act(async () => root.render(createElement(DndApp, { rng: () => 4 })));
     assert.equal(document.documentElement.dataset.theme, 'light');
+    assert.ok(!/批量|Batch/.test(container.textContent ?? ''));
     await act(async () => container.querySelector<HTMLButtonElement>('.method-card')!.click());
     await click('开始生成');
     await act(async () =>
@@ -92,9 +82,6 @@ test('embedded UI completes a Core-backed session; modal preserves frame and fil
   } finally {
     await act(async () => root.unmount());
     dom.window.close();
-    for (const [key, descriptor] of originals) {
-      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-      else Reflect.deleteProperty(globalThis, key);
-    }
+    restoreGlobals();
   }
 });

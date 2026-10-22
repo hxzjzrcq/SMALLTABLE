@@ -9,6 +9,8 @@ const settingsSchema = z
     limits: z
       .object({
         players: positive.optional(),
+        maps: positive.optional(),
+        music: positive.optional(),
         tokens: positive.optional(),
         privateNotesBytes: positive.optional(),
         initiativeEntries: positive.optional(),
@@ -28,6 +30,10 @@ const settingsSchema = z
       })
       .strict()
       .optional(),
+    resources: z
+      .object({ totalBytes: positive.optional(), musicBytes: positive.optional() })
+      .strict()
+      .optional(),
     session: z.object({ idleMinutes: positive.optional() }).strict().optional(),
   })
   .strict();
@@ -39,12 +45,18 @@ export function backupLimits(caps: Capabilities) {
     caps.maxRolls * 65536 +
     caps.maxNames * 1024 +
     caps.maxInitiative * 2048 +
-    caps.maxDrawings * 1024;
+    caps.maxDrawings * 1024 +
+    caps.maxMaps * 8192;
   // Include ZIP headers and worst-case compression overhead as well as content.
-  const contentBytes = caps.mapBytes + caps.maxTokens * caps.tokenBytes + roomBytes;
-  const bytes = contentBytes + Math.ceil(contentBytes / 1000) + (caps.maxTokens + 2) * 512;
-  const entries = caps.maxTokens + 2;
-  if (![roomBytes, bytes, entries, caps.idleMs, caps.tokenEdge ** 2].every(Number.isSafeInteger))
+  const contentBytes = caps.resourceBytes + roomBytes;
+  const bytes =
+    contentBytes + Math.ceil(contentBytes / 1000) + (caps.maxTokens + caps.maxMaps + 1) * 512;
+  const entries = caps.maxTokens + caps.maxMaps + 1;
+  if (
+    ![roomBytes, bytes, entries, caps.idleMs, caps.tokenEdge ** 2, caps.maxMusic * 8192].every(
+      Number.isSafeInteger,
+    )
+  )
     throw Error('配置过大，派生预算超出安全整数范围');
   return { bytes, entries, roomBytes };
 }
@@ -79,10 +91,12 @@ function loadConfig(file: string) {
   }
   const parsed = settingsSchema.safeParse(raw);
   if (!parsed.success) throw Error(`配置 ${file} 无效: ${parsed.error.message}`);
-  const { limits = {}, images = {}, session = {} } = parsed.data;
+  const { limits = {}, images = {}, resources = {}, session = {} } = parsed.data;
   const caps: Capabilities = { ...DEFAULT_CAPABILITIES, ...images };
   const keys = {
     players: 'maxSeats',
+    maps: 'maxMaps',
+    music: 'maxMusic',
     tokens: 'maxTokens',
     privateNotesBytes: 'maxNotesBytes',
     initiativeEntries: 'maxInitiative',
@@ -93,6 +107,8 @@ function loadConfig(file: string) {
   for (const key of Object.keys(keys) as (keyof typeof keys)[])
     if (limits[key] !== undefined) caps[keys[key]] = limits[key]!;
   if (session.idleMinutes !== undefined) caps.idleMs = session.idleMinutes * 60000;
+  if (resources.totalBytes !== undefined) caps.resourceBytes = resources.totalBytes;
+  if (resources.musicBytes !== undefined) caps.musicBytes = resources.musicBytes;
   backupLimits(caps);
   const port = Number(process.env.PORT ?? 3000);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw Error('无效配置 PORT');

@@ -19,6 +19,8 @@ export const LOG_LEVELS = {
   'backup.create_failed': 'error',
   'backup.restore_failed': 'error',
   'image.process_failed': 'error',
+  'resource.cleanup_failed': 'error',
+  'music.failed': 'error',
   'websocket.error': 'error',
   'websocket.rejected': 'warn',
 } as const;

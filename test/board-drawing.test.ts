@@ -25,7 +25,7 @@ test('pointer line preview stays local, release submits once, cancel/pinch do no
   } as unknown as SmalltableClient;
   const props = {
     room: initialRoom(),
-    selected: null,
+    selected: [],
     onSelect: () => {},
     actions,
     tool: 'draw' as const,

@@ -85,7 +85,7 @@ test('real API/socket limits and image edits avoid re-encoding; invalid resource
     const image = await upload.json();
     assert.equal(converted, 1);
     const first = token(image.asset);
-    dm.send({ type: 'create', token: first });
+    dm.send({ type: 'create', token: first, uploadId: image.uploadId });
     await dm.until((e) => e.type === 'snapshot' && e.room.tokens.length === 1);
     assert.equal(checked, 1);
     assert.equal(converted, 1);
@@ -107,7 +107,11 @@ test('real API/socket limits and image edits avoid re-encoding; invalid resource
     const before = converted,
       beforeCheck = checked;
     mark = dm.events.length;
-    dm.send({ type: 'edit', token: { ...first, asset: second.asset } });
+    dm.send({
+      type: 'edit',
+      token: { ...first, asset: second.asset },
+      uploadId: service.storage.temporary(second.asset, auth),
+    });
     await dm.until((e) => e.type === 'snapshot' && e.room.tokens[0].asset === second.asset, mark);
     assert.equal(checked, beforeCheck + 1);
     assert.equal(converted, before);
@@ -303,7 +307,7 @@ test('all collections exceed old defaults through live commands, disk and restor
     delete legacy.initiative;
     delete legacy.initiativeAscending;
     delete legacy.drawings;
-    assert.equal(parseRoom(legacy, caps).tokens.length, 259);
+    assert.throws(() => parseRoom(legacy, caps), /不兼容/);
   } finally {
     await f.close();
   }

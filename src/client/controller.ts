@@ -1,3 +1,5 @@
+import type { MusicSnapshot } from '../shared/music';
+import { coordinate, WORLD_LIMIT } from '../shared/model';
 import type { PasswordChange } from '../shared/passwords';
 import type { Capabilities, Command, ServerEvent, View, PublicToken } from '../shared/model';
 export type Connection = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
@@ -12,6 +14,8 @@ export interface ClientState {
   error: string;
   notice: string;
   caps: Capabilities | null;
+  music?: MusicSnapshot;
+  musicConsent?: { pushId: string };
 }
 const empty: ClientState = {
   connection: 'disconnected',
@@ -130,7 +134,7 @@ export class SmalltableClient {
         if (event.code === 4003) {
           this.password = '';
           clearTimeout(this.reconnectTimer);
-          this.patch({ room: null, count: 0, savedRevision: -1 });
+          this.patch({ room: null, music: undefined, count: 0, savedRevision: -1 });
         }
         if (event.code !== 4001 && event.code !== 4003 && this.password && this.attempts++ < 3)
           this.reconnectTimer = setTimeout(
@@ -150,7 +154,14 @@ export class SmalltableClient {
     this.ws = undefined;
     this.token = '';
     this.password = '';
-    this.patch({ connection: 'disconnected', dm: false, room: null, count: 0, savedRevision: -1 });
+    this.patch({
+      connection: 'disconnected',
+      dm: false,
+      room: null,
+      music: undefined,
+      count: 0,
+      savedRevision: -1,
+    });
   };
   private receive(event: ServerEvent) {
     switch (event.type) {
@@ -179,6 +190,14 @@ export class SmalltableClient {
             },
           });
         break;
+      case 'music':
+        this.patch({
+          music: event.music,
+          musicConsent: event.acceptedPushId
+            ? { pushId: event.acceptedPushId }
+            : this.state.musicConsent,
+        });
+        break;
       case 'presence':
         this.patch({ count: event.count, max: event.max });
         break;
@@ -194,6 +213,13 @@ export class SmalltableClient {
     }
   }
   send = (command: Command) => {
+    if (
+      command.type === 'move' &&
+      (!coordinate.safeParse(command.x).success || !coordinate.safeParse(command.y).success)
+    ) {
+      this.patch({ error: '坐标超出桌面范围' });
+      return false;
+    }
     if (this.ws?.readyState !== WebSocket.OPEN) {
       this.patch({ error: '当前未连接，操作没有同步' });
       return false;
@@ -215,6 +241,35 @@ export class SmalltableClient {
       }
     }
   };
+  cloneToken = (id: string): string | null => {
+    const { room, caps, dm, connection } = this.state;
+    const token = room?.tokens.find((t) => t.id === id);
+    if (
+      !dm ||
+      connection !== 'connected' ||
+      !token ||
+      !caps ||
+      room!.tokens.length >= caps.maxTokens
+    )
+      return null;
+    const copyId = crypto.randomUUID();
+    // Keep a nearby clone legal even at the positive world boundary.
+    const offset = (value: number) => (value + 24 <= WORLD_LIMIT ? value + 24 : value - 24);
+    return this.send({
+      type: 'create',
+      token: {
+        ...token,
+        secret: token.secret ?? '',
+        id: copyId,
+        x: offset(token.x),
+        y: offset(token.y),
+      },
+    })
+      ? copyId
+      : null;
+  };
+  deleteTokens = (ids: string[]) =>
+    this.send({ type: 'delete.many', ids, epoch: this.state.epoch });
   move = (id: string, x: number, y: number, final: boolean) =>
     this.send({ type: 'move', id, x, y, final, epoch: this.state.epoch });
   rotate = (t: PublicToken, delta: number) =>
@@ -233,9 +288,32 @@ export class SmalltableClient {
     this.send({ type: 'drawing.delete', id, epoch: this.state.epoch });
   clearDrawings = () => this.send({ type: 'drawing.clear', epoch: this.state.epoch });
   async upload(file: File, kind: 'map' | 'token') {
-    return this.request<{ asset: string; width: number; height: number }>(`/api/image/${kind}`, {
+    return this.request<{ asset: string; width: number; height: number; uploadId?: string }>(
+      `/api/image/${kind}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'X-File-Name': encodeURIComponent(file.name),
+        },
+        body: file,
+      },
+    );
+  }
+  async cancelUpload(uploadId: string) {
+    return this.request('/api/upload/cancel', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/octet-stream' },
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uploadId }),
+    });
+  }
+  async uploadMusic(file: File) {
+    return this.request('/api/music', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'X-File-Name': encodeURIComponent(file.name),
+      },
       body: file,
     });
   }

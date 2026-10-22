@@ -1,8 +1,11 @@
 import { memo, useState } from 'react';
 import { PasswordSettings } from './PasswordSettings';
-import type { Room } from '../../shared/model';
+import { WORLD_LIMIT, type Room } from '../../shared/model';
 import type { SmalltableClient } from '../controller';
 export const DMPanel = memo(function DMPanel({
+  maps = [],
+  currentMapId,
+  maxMaps,
   maxNames,
   mapBytes,
   mapPixels,
@@ -13,6 +16,9 @@ export const DMPanel = memo(function DMPanel({
   actions,
   connected,
 }: {
+  maps?: Room['maps'];
+  currentMapId?: string | null;
+  maxMaps?: number;
   grid: Room['grid'];
   names: string[];
   maxNames?: number;
@@ -67,18 +73,23 @@ export const DMPanel = memo(function DMPanel({
           <div className="button-row">
             <button onClick={() => actions.send({ type: 'lock' })}>锁定工具箱</button>
             <label className="button">
-              替换地图
+              添加地图
               <input
                 type="file"
                 hidden
-                disabled={busy || !connected || mapBytes === undefined}
+                disabled={
+                  busy ||
+                  !connected ||
+                  mapBytes === undefined ||
+                  maxMaps === undefined ||
+                  maps.length >= maxMaps
+                }
                 accept="image/png,image/jpeg,image/webp"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
                   if (f && mapBytes !== undefined && f.size > mapBytes)
                     setMessage(`地图文件超过 ${mapBytes} 字节`);
-                  else if (f && confirm('替换地图？现有棋子将保留原坐标。'))
-                    void task(() => actions.upload(f, 'map'), '地图已替换');
+                  else if (f) void task(() => actions.upload(f, 'map'), '地图已添加');
                   e.target.value = '';
                 }}
               />
@@ -87,6 +98,46 @@ export const DMPanel = memo(function DMPanel({
           <p className="meta">
             地图：{mapBytes ?? '—'} 字节 · {mapPixels ?? '—'} 像素 · 单边 {mapEdge ?? '—'} 像素
           </p>
+          <h3>
+            地图列表 {maps.length} / {maxMaps ?? '—'}
+          </h3>
+          {maps.map((map) => (
+            <div className="map-entry" key={map.id}>
+              <button
+                disabled={!connected || map.id === currentMapId}
+                onClick={() => actions.send({ type: 'map.select', id: map.id })}
+              >
+                {map.name}
+                {map.id === currentMapId ? ' · 当前' : ''}
+              </button>
+              <label>
+                背景缩放
+                <select
+                  aria-label={`背景缩放 ${map.name}`}
+                  value={map.scale}
+                  disabled={!connected}
+                  onChange={(e) =>
+                    actions.send({ type: 'map.scale', id: map.id, scale: Number(e.target.value) })
+                  }
+                >
+                  {Array.from({ length: 30 }, (_, i) => (i + 1) * 10).map((n) => (
+                    <option key={n} value={n}>
+                      {n}%
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                disabled={!connected}
+                onClick={() => {
+                  if (confirm(`删除地图“${map.name}”？`))
+                    actions.send({ type: 'map.delete', id: map.id });
+                }}
+              >
+                删除地图
+              </button>
+            </div>
+          ))}
           <GridEditor
             key={`${grid.cell}:${grid.x}:${grid.y}:${grid.visible}`}
             initialGrid={grid}
@@ -127,10 +178,11 @@ export const DMPanel = memo(function DMPanel({
             className="danger"
             disabled={!connected}
             onClick={() => {
-              if (confirm('清空全部棋子？不提供撤销。')) actions.send({ type: 'clear' });
+              if (confirm('掀桌将清空全部棋子和画线，不可撤销。继续？'))
+                actions.send({ type: 'clear' });
             }}
           >
-            清空全部棋子
+            掀桌
           </button>
         </>
       )}
@@ -176,6 +228,8 @@ function GridEditor({
             <input
               type="number"
               step="any"
+              min={-WORLD_LIMIT}
+              max={WORLD_LIMIT}
               value={grid[k]}
               onChange={(e) => setGrid({ ...grid, [k]: Number(e.target.value) })}
             />

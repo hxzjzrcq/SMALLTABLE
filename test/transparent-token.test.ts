@@ -43,7 +43,7 @@ test('transparent image hit rectangle supports selecting, dragging and rotation;
   } as unknown as SmalltableClient;
   const props = {
     room,
-    selected: piece.id,
+    selected: [piece.id],
     onSelect: (id: string | null) => {
       selected = id;
     },

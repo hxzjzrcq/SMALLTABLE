@@ -1,0 +1,38 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> smalltable@0.6.5 test:browser
+> node --import tsx test/browser-065.ts && node --import tsx test/browser-board-065.ts && node --import tsx test/browser-music-065.ts && node --import tsx test/browser-autoplay-065.ts
+
+LAYOUT 320 adnd2e.sp-VII PASS
+LAYOUT 320 adnd2e.sp-IX PASS
+LAYOUT 320 adnd2e.sp-X PASS
+LAYOUT 320 dnd35.dmg-point-buy PASS
+LAYOUT 320 pf1.purchase PASS
+LAYOUT 320 dnd5e2014.point-buy PASS
+LAYOUT 320 dnd5e2024.point-buy PASS
+LAYOUT 360 adnd2e.sp-VII PASS
+LAYOUT 360 adnd2e.sp-IX PASS
+LAYOUT 360 adnd2e.sp-X PASS
+LAYOUT 360 dnd35.dmg-point-buy PASS
+LAYOUT 360 pf1.purchase PASS
+LAYOUT 360 dnd5e2014.point-buy PASS
+LAYOUT 360 dnd5e2024.point-buy PASS
+LAYOUT 390 adnd2e.sp-VII PASS
+LAYOUT 390 adnd2e.sp-IX PASS
+LAYOUT 390 adnd2e.sp-X PASS
+LAYOUT 390 dnd35.dmg-point-buy PASS
+LAYOUT 390 pf1.purchase PASS
+LAYOUT 390 dnd5e2014.point-buy PASS
+LAYOUT 390 dnd5e2024.point-buy PASS
+LAYOUT 420 adnd2e.sp-VII PASS
+LAYOUT 420 adnd2e.sp-IX PASS
+LAYOUT 420 adnd2e.sp-X PASS
+LAYOUT 420 dnd35.dmg-point-buy PASS
+LAYOUT 420 pf1.purchase PASS
+LAYOUT 420 dnd5e2014.point-buy PASS
+LAYOUT 420 dnd5e2024.point-buy PASS
+BROWSER_LAYOUT_PASS
+BROWSER_BOARD_PASS {"box":{"x":0,"y":253,"right":320,"bottom":824},"view":{"x":-36607.07421875,"y":-36607.07421875,"width":73161.1328125,"height":130546.8984375},"tokens":[{"x":15.999993324279785,"y":269,"right":17.583518981933594,"bottom":270.5835266113281},{"x":302.8802795410156,"y":555.8802490234375,"right":304,"bottom":557}]}
+AUDIO_SYNC_SECONDS 0.1781919999999999 strictAutoplayBlocked false
+BROWSER_MUSIC_PASS
+BROWSER_NATIVE_AUTOPLAY_BLOCK_AND_CLICK_RECOVERY_PASS

@@ -12,7 +12,7 @@ import {
   commandSchema,
 } from '../src/shared/model';
 
-test('stable numeric sorting and strict v1 room migration', () => {
+test('stable numeric sorting and strict legacy schema rejection', () => {
   const entries = [
     { id: randomUUID(), name: 'A', value: 10 },
     { id: randomUUID(), name: 'B', value: 10 },
@@ -32,11 +32,8 @@ test('stable numeric sorting and strict v1 room migration', () => {
   );
   const { initiative, initiativeAscending, drawings, ...rest } = initialRoom();
   const old = { ...rest, schemaVersion: 1, tokens: [makeToken()] };
-  const migrated = parseRoom(old);
-  assert.equal(migrated.schemaVersion, 2);
-  assert.deepEqual(migrated.initiative, []);
-  assert.deepEqual(migrated.drawings, []);
-  assert.equal(migrated.tokens[0].secret, old.tokens[0].secret);
+  assert.throws(() => parseRoom(old), /不兼容/);
+  const migrated = initialRoom();
   assert.throws(() => parseRoom({ ...old, extra: true }));
   assert.throws(() => parseRoom({ ...old, schemaVersion: 99 }));
   assert.equal(
@@ -100,7 +97,7 @@ test('players share initiative CRUD/order and lines; only DM clears; stale or in
   }
 });
 
-test('new room data survives backup/restore and disk load; v1 backups and disk files migrate', async () => {
+test('new room data survives backup/restore and disk load; v1 backups and disk files are rejected', async () => {
   const x = await setup();
   try {
     const dm = await x.peer();
@@ -132,25 +129,18 @@ test('new room data survives backup/restore and disk load; v1 backups and disk f
     const legacy = { ...old, schemaVersion: 1, tokens: [makeToken()] };
     const oldZip = new AdmZip();
     oldZip.addFile('room.json', Buffer.from(JSON.stringify(legacy)));
-    assert.equal(
-      (
-        await fetch(x.url + '/api/restore', {
-          method: 'POST',
-          headers: { ...headers, 'Content-Type': 'application/zip' },
-          body: new Uint8Array(oldZip.toBuffer()),
-        })
-      ).status,
-      200,
-    );
-    assert.equal(x.service.getRoom().schemaVersion, 2);
-    assert.deepEqual(x.service.getRoom().drawings, []);
-    assert.equal(x.service.getRoom().tokens[0].secret, legacy.tokens[0].secret);
-    // Use a separate storage directory to exercise loading a legacy on-disk room.
-    const { writeFile } = await import('node:fs/promises');
-    await writeFile(path.join(x.dir, 'room.json'), JSON.stringify(legacy));
-    const migrated = await x.service.storage.load();
-    assert.equal(migrated?.schemaVersion, 2);
-    assert.deepEqual(migrated?.initiative, []);
+    const before = x.service.getRoom();
+    const response = await fetch(x.url + '/api/restore', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${dm.token}`, 'Content-Type': 'application/zip' },
+      body: new Uint8Array(oldZip.toBuffer()),
+    });
+    assert.equal(response.status, 400);
+    assert.deepEqual(x.service.getRoom(), before);
+    const fs = await import('node:fs/promises');
+    await fs.writeFile(path.join(x.dir, 'room.json'), JSON.stringify(legacy));
+    await assert.rejects(x.service.storage.load(), /存档损坏/);
+    await x.service.storage.save(before);
   } finally {
     await x.cleanup();
   }

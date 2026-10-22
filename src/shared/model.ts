@@ -1,10 +1,11 @@
 import { z } from 'zod';
 import { DEFAULT_CAPABILITIES, type Capabilities } from './limits.js';
 export type { Capabilities } from './limits.js';
-export const SCHEMA_VERSION = 2 as const;
+export const SCHEMA_VERSION = 3 as const;
 export const bytes = (s: string) => new TextEncoder().encode(s).length;
 export const text = (max: number) => z.string().refine((s) => bytes(s) <= max, '文字超过字节上限');
-export const coordinate = z.number().finite().min(-1_000_000).max(1_000_000);
+export const WORLD_LIMIT = 32768;
+export const coordinate = z.number().finite().min(-WORLD_LIMIT).max(WORLD_LIMIT);
 export const assetId = z.string().regex(/^[a-f0-9]{64}\.webp$/);
 export const tokenSchema = z
   .object({
@@ -30,8 +31,12 @@ export type PublicToken = Omit<Token, 'secret'> & { secret?: string };
 export const gridSchema = z
   .object({ cell: z.number().min(4).max(2048), x: coordinate, y: coordinate, visible: z.boolean() })
   .strict();
+export const backgroundScale = z.number().int().min(10).max(300).multipleOf(10);
 export const mapSchema = z
   .object({
+    id: z.string().uuid(),
+    name: text(1024),
+    scale: backgroundScale,
     asset: assetId,
     width: z.number().int().positive(),
     height: z.number().int().positive(),
@@ -92,13 +97,17 @@ export const createRoomSchema = (caps: Capabilities) =>
     .object({
       schemaVersion: z.literal(SCHEMA_VERSION),
       revision: z.number().int().nonnegative(),
-      map: mapSchema
-        .extend({
-          width: z.number().int().positive().max(caps.mapEdge),
-          height: z.number().int().positive().max(caps.mapEdge),
-        })
-        .refine((m) => m.width * m.height <= caps.mapPixels, '地图像素超过上限')
-        .nullable(),
+      maps: z
+        .array(
+          mapSchema
+            .extend({
+              width: z.number().int().positive().max(caps.mapEdge),
+              height: z.number().int().positive().max(caps.mapEdge),
+            })
+            .refine((m) => m.width * m.height <= caps.mapPixels, '地图像素超过上限'),
+        )
+        .max(caps.maxMaps),
+      currentMapId: z.string().uuid().nullable(),
       grid: gridSchema,
       tokens: z.array(tokenSchema).max(caps.maxTokens),
       names: z.array(text(128)).min(1).max(caps.maxNames),
@@ -108,6 +117,12 @@ export const createRoomSchema = (caps: Capabilities) =>
       drawings: z.array(drawingSchema).max(caps.maxDrawings),
     })
     .strict()
+    .refine((s) => new Set(s.maps.map((m) => m.id)).size === s.maps.length, '地图 ID 重复')
+    .refine(
+      (s) =>
+        s.maps.length ? s.maps.some((m) => m.id === s.currentMapId) : s.currentMapId === null,
+      '当前地图无效',
+    )
     .refine((s) => new Set(s.tokens.map((t) => t.id)).size === s.tokens.length, '棋子 ID 重复')
     .refine(
       (s) => new Set(s.initiative.map((t) => t.id)).size === s.initiative.length,
@@ -115,33 +130,23 @@ export const createRoomSchema = (caps: Capabilities) =>
     )
     .refine((s) => new Set(s.drawings.map((t) => t.id)).size === s.drawings.length, '线条 ID 重复');
 export const roomSchema = createRoomSchema(DEFAULT_CAPABILITIES);
-// Explicit migration: validate the old schema strictly before supplying new fields.
-const legacyRoomSchema = (schema: ReturnType<typeof createRoomSchema>) =>
-  z
-    .object({ ...schema.shape })
-    .omit({ initiative: true, initiativeAscending: true, drawings: true })
-    .strict()
-    .extend({ schemaVersion: z.literal(1) })
-    .refine((s) => new Set(s.tokens.map((t) => t.id)).size === s.tokens.length);
 export function parseRoom(input: unknown, caps: Capabilities = DEFAULT_CAPABILITIES): Room {
-  const schema = createRoomSchema(caps);
-  if (input && typeof input === 'object' && 'schemaVersion' in input && input.schemaVersion === 1) {
-    return schema.parse({
-      ...legacyRoomSchema(schema).parse(input),
-      schemaVersion: 2,
-      initiative: [],
-      initiativeAscending: false,
-      drawings: [],
-    });
-  }
-  return schema.parse(input);
+  if (
+    !input ||
+    typeof input !== 'object' ||
+    !('schemaVersion' in input) ||
+    input.schemaVersion !== SCHEMA_VERSION
+  )
+    throw Error('不兼容的房间 schema，要求版本 3；不执行迁移');
+  return createRoomSchema(caps).parse(input);
 }
 export type Room = z.infer<typeof roomSchema>;
 export type View = Omit<Room, 'tokens'> & { tokens: PublicToken[] };
 export const initialRoom = (): Room => ({
-  schemaVersion: 2,
+  schemaVersion: SCHEMA_VERSION,
   revision: 0,
-  map: null,
+  maps: [],
+  currentMapId: null,
   grid: { cell: 64, x: 0, y: 0, visible: true },
   tokens: [],
   names: ['天意爷'],
@@ -199,6 +204,15 @@ export const createCommandSchema = (caps: Capabilities) =>
       })
       .strict(),
     z.object({ type: z.literal('drawing.clear'), epoch: z.number().int().nonnegative() }).strict(),
+    z.object({ type: z.literal('map.select'), id: z.string().uuid() }).strict(),
+    z.object({ type: z.literal('map.delete'), id: z.string().uuid() }).strict(),
+    z
+      .object({ type: z.literal('map.scale'), id: z.string().uuid(), scale: backgroundScale })
+      .strict(),
+    z.object({ type: z.literal('music.play'), id: z.string().uuid() }).strict(),
+    z.object({ type: z.literal('music.pause') }).strict(),
+    z.object({ type: z.literal('music.stop') }).strict(),
+    z.object({ type: z.literal('music.delete'), id: z.string().uuid() }).strict(),
     z.object({ type: z.literal('activity') }),
     z.object({
       type: z.literal('move'),
@@ -225,9 +239,28 @@ export const createCommandSchema = (caps: Capabilities) =>
     z.object({ type: z.literal('roll'), expression: z.string().max(128), name: text(128) }),
     z.object({ type: z.literal('unlock'), password: z.string().max(1024) }),
     z.object({ type: z.literal('lock') }),
-    z.object({ type: z.literal('create'), token: tokenSchema }),
-    z.object({ type: z.literal('edit'), token: tokenSchema }),
+    z.object({
+      type: z.literal('create'),
+      token: tokenSchema,
+      uploadId: z.string().uuid().optional(),
+    }),
+    z.object({
+      type: z.literal('edit'),
+      token: tokenSchema,
+      uploadId: z.string().uuid().optional(),
+    }),
     z.object({ type: z.literal('delete'), id: z.string().uuid() }),
+    z
+      .object({
+        type: z.literal('delete.many'),
+        ids: z
+          .array(z.string().uuid())
+          .min(1)
+          .max(caps.maxTokens)
+          .refine((ids) => new Set(ids).size === ids.length, '棋子 ID 重复'),
+        epoch: z.number().int().nonnegative(),
+      })
+      .strict(),
     z.object({ type: z.literal('clear') }),
     z.object({ type: z.literal('grid'), grid: gridSchema }),
     z.object({ type: z.literal('names'), names: z.array(text(128)).min(1).max(caps.maxNames) }),
@@ -237,6 +270,7 @@ export type Command = z.infer<typeof commandSchema>;
 export type ServerEvent =
   | { type: 'snapshot'; room: View; dm: boolean; epoch: number; caps?: Capabilities }
   | { type: 'token'; token: PublicToken; revision: number; epoch: number }
+  | { type: 'music'; music: import('./music.js').MusicSnapshot; acceptedPushId?: string }
   | { type: 'presence'; count: number; max: number }
   | { type: 'saved'; revision: number }
   | { type: 'error'; message: string }

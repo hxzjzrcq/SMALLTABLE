@@ -24,7 +24,7 @@ test('selection-only rotation and player public-note-only controls', () => {
   const actions = {} as SmalltableClient;
   const props = {
     room: { ...initialRoom(), tokens: [token] },
-    selected: null as string | null,
+    selected: [] as string[],
     onSelect: () => {},
     actions,
     tool: 'move' as const,
@@ -33,7 +33,7 @@ test('selection-only rotation and player public-note-only controls', () => {
     connected: true,
   };
   assert.ok(!renderToStaticMarkup(createElement(Board, props)).includes('token-rotate'));
-  const selected = renderToStaticMarkup(createElement(Board, { ...props, selected: token.id }));
+  const selected = renderToStaticMarkup(createElement(Board, { ...props, selected: [token.id] }));
   assert.match(selected, /class="token-rotate"/);
   assert.match(selected, /顺时针旋转棋子 45°/);
   const player = renderToStaticMarkup(

@@ -51,7 +51,7 @@ test('image validation, deduplication and portable backup on a fresh instance', 
       400,
     );
     const token = { ...makeToken(), asset: asset.asset };
-    dm.send({ type: 'create', token });
+    dm.send({ type: 'create', token, uploadId: asset.uploadId });
     await dm.wait((e) => e.type === 'snapshot' && e.room.tokens.length === 1);
     const backup = Buffer.from(
       await (await fetch(x.url + '/api/backup', { headers })).arrayBuffer(),

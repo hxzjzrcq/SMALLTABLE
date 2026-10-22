@@ -173,3 +173,39 @@ body::before {
     flex-wrap: wrap;
   }
 }
+
+/* Keep controls intrinsic; cost can use its own row at phone widths. */
+.buy-row {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 5em);
+}
+.buy-row .stepper {
+  flex-shrink: 0;
+}
+.buy-row .btn-step {
+  flex: 0 0 44px;
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+}
+.buy-row .buy-cost {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .buy-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 8px;
+  }
+  .buy-cost {
+    grid-column: 1 / -1;
+    text-align: right;
+  }
+  .buy-row .stepper {
+    gap: 4px;
+  }
+  .buy-row .stepper-value {
+    min-width: 2ch;
+  }
+}

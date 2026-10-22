@@ -6,14 +6,22 @@
     "initiativeEntries": 255,
     "drawings": 255,
     "rollHistory": 255,
-    "names": 255
+    "names": 255,
+    "maps": 10,
+    "music": 10
   },
   "images": {
     "mapBytes": 10485760,
     "mapPixels": 16000000,
     "mapEdge": 8192,
-    "tokenBytes": 131072,
+    "tokenBytes": 262144,
     "tokenEdge": 256
   },
-  "session": { "idleMinutes": 30 }
+  "session": {
+    "idleMinutes": 30
+  },
+  "resources": {
+    "totalBytes": 67108864,
+    "musicBytes": 4194304
+  }
 }

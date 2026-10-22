@@ -1,6 +1,10 @@
 // Deployment defaults live here; effective limits are supplied by the server.
 export const DEFAULT_CAPABILITIES = {
   maxSeats: 15,
+  maxMaps: 10,
+  maxMusic: 10,
+  resourceBytes: 64 * 1024 * 1024,
+  musicBytes: 4 * 1024 * 1024,
   maxTokens: 255,
   maxNotesBytes: 65535,
   maxInitiative: 255,
@@ -10,7 +14,7 @@ export const DEFAULT_CAPABILITIES = {
   mapBytes: 10 * 1024 * 1024,
   mapPixels: 16_000_000,
   mapEdge: 8192,
-  tokenBytes: 128 * 1024,
+  tokenBytes: 256 * 1024,
   tokenEdge: 256,
   idleMs: 30 * 60000,
 };

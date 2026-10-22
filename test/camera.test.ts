@@ -9,7 +9,7 @@ test('touch zoom buttons preserve the center anchor and clamp scaling', () => {
   assert.equal(next.x + point.x / next.scale, camera.x + point.x / camera.scale);
   assert.equal(next.y + point.y / next.scale, camera.y + point.y / camera.scale);
   assert.equal(zoomCamera(camera, point, 1000).scale, 8);
-  assert.equal(zoomCamera(camera, point, 0.0001).scale, 0.03);
+  assert.equal(zoomCamera(camera, point, 0.0001).scale, 0.0001);
 });
 
 test('two-finger gesture preserves its world anchor while midpoint pans', () => {

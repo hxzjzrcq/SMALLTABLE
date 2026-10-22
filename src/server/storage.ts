@@ -1,22 +1,27 @@
 import { logEvent } from './log.js';
 import { mkdir, readFile, writeFile, rename, unlink, readdir, open, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import sharp from 'sharp';
 import AdmZip from 'adm-zip';
 import { assetId, type Room } from '../shared/model.js';
+import { audioId, type Track } from '../shared/music.js';
 import type { Capabilities } from '../shared/limits.js';
 export interface StorageOptions {
   dataDir: string;
   images: Pick<Capabilities, 'mapBytes' | 'mapPixels' | 'mapEdge' | 'tokenBytes' | 'tokenEdge'>;
+  resourceBytes: number;
   backup: { bytes: number; entries: number; roomBytes: number };
   parse: (input: unknown) => Room;
 }
 export class Storage {
   private chain: Promise<void> = Promise.resolve();
   readonly assetDir: string;
+  readonly audioDir: string;
+  private leases = new Map<string, { asset: string; owner: string; expires: number }>();
   constructor(private readonly options: StorageOptions) {
     this.assetDir = path.join(options.dataDir, 'assets');
+    this.audioDir = path.join(options.dataDir, 'audio');
   }
   async load(): Promise<Room | null> {
     try {
@@ -25,14 +30,11 @@ export class Storage {
       if ((await stat(file)).size > this.options.backup.roomBytes)
         throw Error('room.json 超过大小上限');
       const room = this.options.parse(JSON.parse(await readFile(file, 'utf8')));
-      for (const id of this.refs(room)) {
-        if (room.map?.asset === id) {
-          const m = await this.checkImage(id, 'map');
-          if (m.width !== room.map.width || m.height !== room.map.height)
-            throw Error('地图尺寸不一致');
-        }
-        if (room.tokens.some((t) => t.asset === id)) await this.checkImage(id, 'token');
+      for (const map of room.maps) {
+        const m = await this.checkImage(map.asset, 'map');
+        if (m.width !== map.width || m.height !== map.height) throw Error('地图尺寸不一致');
       }
+      for (const token of room.tokens) if (token.asset) await this.checkImage(token.asset, 'token');
       return room;
     } catch (e) {
       if (
@@ -90,7 +92,10 @@ export class Storage {
       const file = path.join(this.assetDir, id);
       const max = kind === 'map' ? this.options.images.mapBytes : this.options.images.tokenBytes;
       if ((await stat(file)).size > max) throw Error('图片文件超过上限');
-      const { width, height } = await this.inspectImage(await readFile(file), kind);
+      const data = await readFile(file);
+      const { width, height } = await this.inspectImage(data, kind);
+      if (createHash('sha256').update(data).digest('hex') + '.webp' !== id)
+        throw Error('图片哈希不一致');
       return { width, height };
     } catch (error) {
       logEvent('image.process_failed', { error });
@@ -116,13 +121,12 @@ export class Storage {
   }
   async put(buffer: Buffer, kind: 'map' | 'token') {
     const image = await this.validateImage(buffer, kind);
-    const id = createHash('sha256').update(image.data).digest('hex') + '.webp';
-    await writeFile(path.join(this.assetDir, id), image.data);
+    const id = await this.install(image.data, 'webp');
     return { asset: id, width: image.width, height: image.height };
   }
   refs(room: Room) {
     return new Set([
-      ...(room.map ? [room.map.asset] : []),
+      ...room.maps.map((m) => m.asset),
       ...room.tokens.flatMap((t) => (t.asset ? [t.asset] : [])),
     ]);
   }
@@ -130,15 +134,84 @@ export class Storage {
     assetId.parse(id);
     await readFile(path.join(this.assetDir, id));
   }
-  async collect(room: Room) {
-    const refs = this.refs(room);
-    for (const name of await readdir(this.assetDir))
-      if (
-        assetId.safeParse(name).success &&
-        !refs.has(name) &&
-        Date.now() - (await stat(path.join(this.assetDir, name))).mtimeMs > 3600000
-      )
-        await unlink(path.join(this.assetDir, name)).catch(() => {});
+  temporary(asset: string, owner: string) {
+    const id = randomUUID();
+    this.leases.set(id, { asset, owner, expires: Date.now() + 600000 });
+    return id;
+  }
+  checkBinding(asset: string, uploadId: string | undefined, owner: string, room: Room) {
+    if (uploadId) {
+      const lease = this.leases.get(uploadId);
+      if (!lease || lease.owner !== owner || lease.asset !== asset || lease.expires <= Date.now())
+        throw Error('图片暂存已过期或无效，请重新上传');
+    } else if (!this.refs(room).has(asset)) throw Error('图片需要有效暂存引用');
+  }
+  release(uploadId: string, owner: string) {
+    const lease = this.leases.get(uploadId);
+    if (lease?.owner === owner) this.leases.delete(uploadId);
+  }
+  private temporaryRefs() {
+    for (const [id, lease] of this.leases) if (lease.expires <= Date.now()) this.leases.delete(id);
+    return new Set([...this.leases.values()].map((l) => l.asset));
+  }
+  async files() {
+    const files = new Map<string, number>();
+    for (const [dir, schema] of [
+      [this.assetDir, assetId],
+      [this.audioDir, audioId],
+    ] as const) {
+      await mkdir(dir, { recursive: true });
+      for (const name of await readdir(dir))
+        if (schema.safeParse(name).success)
+          files.set(name, (await stat(path.join(dir, name))).size);
+    }
+    return files;
+  }
+  async usage() {
+    return [...(await this.files()).values()].reduce((a, b) => a + b, 0);
+  }
+  async assertBudget(additions = new Map<string, number>(), removed = new Set<string>()) {
+    const files = await this.files();
+    for (const name of removed) files.delete(name);
+    for (const [name, size] of additions) files.set(name, size);
+    if ([...files.values()].reduce((a, b) => a + b, 0) > this.options.resourceBytes)
+      throw Error('图片与音乐总资源预算超限');
+  }
+  async install(data: Buffer, extension: 'webp' | 'mp3') {
+    const asset = createHash('sha256').update(data).digest('hex') + '.' + extension;
+    await this.assertBudget(new Map([[asset, data.length]]));
+    const file = path.join(extension === 'webp' ? this.assetDir : this.audioDir, asset);
+    try {
+      await stat(file);
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+      // Atomic create: incomplete writes never replace a file referenced by the room.
+      const tmp = file + '.tmp';
+      try {
+        await writeFile(tmp, data);
+        await rename(tmp, file);
+      } finally {
+        await unlink(tmp).catch((e) => {
+          if (e.code !== 'ENOENT') logEvent('resource.cleanup_failed', { error: e });
+        });
+      }
+    }
+    return asset;
+  }
+  async collect(room: Room, tracks: Track[] = []) {
+    const refs = new Set([
+      ...this.refs(room),
+      ...tracks.map((t) => t.asset),
+      ...this.temporaryRefs(),
+    ]);
+    for (const name of (await this.files()).keys())
+      if (!refs.has(name)) {
+        try {
+          await unlink(path.join(name.endsWith('.mp3') ? this.audioDir : this.assetDir, name));
+        } catch (error) {
+          logEvent('resource.cleanup_failed', { error });
+        }
+      }
   }
   async backup(room: Room) {
     const zip = new AdmZip();
@@ -163,6 +236,8 @@ export class Storage {
         files.has(entry.entryName)
       )
         throw Error('备份路径或条目无效');
+      if (entry.header.size > budget || total + entry.header.size > budget)
+        throw Error('备份展开大小超限');
       const data = entry.getData();
       const limit =
         entry.entryName === 'room.json'
@@ -179,19 +254,43 @@ export class Storage {
       const data = files.get('assets/' + id);
       if (!data || createHash('sha256').update(data).digest('hex') + '.webp' !== id)
         throw Error('图片缺失或校验失败');
-      if (room.map?.asset === id) {
+      for (const map of room.maps.filter((m) => m.asset === id)) {
         const m = await this.validateImage(data, 'map');
-        if (m.width !== room.map.width || m.height !== room.map.height)
-          throw Error('地图尺寸不一致');
+        if (m.width !== map.width || m.height !== map.height) throw Error('地图尺寸不一致');
       }
       if (room.tokens.some((t) => t.asset === id)) await this.validateImage(data, 'token');
     }
     // All validation completes before any asset or room is committed.
     return {
       room,
+      checkBudget: async (previous: Room) => {
+        const nextRefs = this.refs(room),
+          tempRefs = this.temporaryRefs();
+        const removed = new Set(
+          [...this.refs(previous)].filter((id) => !nextRefs.has(id) && !tempRefs.has(id)),
+        );
+        await this.assertBudget(
+          new Map([...nextRefs].map((id) => [id, files.get('assets/' + id)!.length])),
+          removed,
+        );
+      },
       commitAssets: async () => {
-        for (const id of this.refs(room))
-          await writeFile(path.join(this.assetDir, id), files.get('assets/' + id)!);
+        for (const id of this.refs(room)) {
+          const file = path.join(this.assetDir, id);
+          try {
+            await stat(file);
+          } catch (e) {
+            if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+            try {
+              await writeFile(file + '.tmp', files.get('assets/' + id)!);
+              await rename(file + '.tmp', file);
+            } finally {
+              await unlink(file + '.tmp').catch((e) => {
+                if (e.code !== 'ENOENT') logEvent('resource.cleanup_failed', { error: e });
+              });
+            }
+          }
+        }
       },
     };
   }

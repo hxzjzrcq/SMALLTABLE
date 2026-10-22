@@ -1,5 +1,8 @@
+import { selectTokens } from './selection';
+import { installShortcuts } from './shortcuts';
+import { MusicPanel } from './components/MusicPanel';
 import { LoginPage } from './components/LoginPage';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSmalltable } from './useSmalltable';
 import { Board } from './components/Board';
 import { Notes } from './components/Notes';
@@ -12,7 +15,7 @@ import { DMPanel } from './components/DMPanel';
 export default function App() {
   const state = useSmalltable(),
     { actions, room, dm, connection } = state;
-  const [selected, setSelected] = useState<string | null>(null),
+  const [selectedIds, setSelectedIds] = useState<string[]>([]),
     [tool, setTool] = useState<'move' | 'measure' | 'draw'>('move'),
     [fit, setFit] = useState(0),
     [abilityOpen, setAbilityOpen] = useState(false),
@@ -22,9 +25,62 @@ export default function App() {
     [tab, setTab] = useState<'dice' | 'tokens' | 'notes' | 'dm'>('dice');
   const closeInitiative = useCallback(() => setInitiativeOpen(false), []);
   const closeAbility = useCallback(() => setAbilityOpen(false), []);
+  const pendingSelection = useRef<string | null>(null);
+  const select = useCallback((id: string | null, additive = false) => {
+    pendingSelection.current = null;
+    setSelectedIds((current) => selectTokens(current, id, additive));
+    if (id) setTab('tokens');
+  }, []);
+  useEffect(() => {
+    if (connection !== 'connected') {
+      pendingSelection.current = null;
+      setSelectedIds([]);
+    } else {
+      const ids = new Set(room?.tokens.map((t) => t.id));
+      const pending = pendingSelection.current;
+      if (pending && ids.has(pending)) {
+        pendingSelection.current = null;
+        setSelectedIds([pending]);
+      } else
+        setSelectedIds((current) => {
+          const valid = current.filter((id) => ids.has(id));
+          return valid.length === current.length ? current : valid;
+        });
+    }
+  }, [room?.tokens, connection]);
+  useEffect(() => {
+    pendingSelection.current = null;
+    setSelectedIds([]);
+  }, [state.epoch]);
+  useEffect(() => {
+    if (state.error) pendingSelection.current = null;
+  }, [state.error]);
+  const selected = selectedIds.length === 1 ? selectedIds[0] : null;
+  const clone = useCallback(
+    (id: string) => {
+      const copyId = actions.cloneToken(id);
+      if (copyId) pendingSelection.current = copyId;
+    },
+    [actions],
+  );
   const caps = state.caps;
   const connected = connection === 'connected';
   const token = room?.tokens.find((t) => t.id === selected);
+  useEffect(
+    () =>
+      installShortcuts(window, [
+        {
+          key: 'Delete',
+          enabled: () => connected && dm && selectedIds.length > 0 && !abilityOpen,
+          run: () => {
+            const ids = selectedIds.filter((id) => room?.tokens.some((t) => t.id === id));
+            if (ids.length && window.confirm(`删除选中的 ${ids.length} 枚棋子？不可撤销。`))
+              actions.deleteTokens(ids);
+          },
+        },
+      ]),
+    [actions, connected, dm, selectedIds, room?.tokens, abilityOpen],
+  );
   if (!room)
     return (
       <LoginPage
@@ -41,7 +97,7 @@ export default function App() {
   function create() {
     if (!room) return;
     const id = crypto.randomUUID();
-    actions.send({
+    const sent = actions.send({
       type: 'create',
       token: {
         id,
@@ -58,7 +114,7 @@ export default function App() {
         secret: '',
       },
     });
-    setSelected(id);
+    if (sent) pendingSelection.current = id;
     setTab('tokens');
   }
   return (
@@ -159,6 +215,14 @@ export default function App() {
             </span>
           </div>
         </nav>
+        <MusicPanel
+          consent={state.musicConsent}
+          music={state.music}
+          dm={dm}
+          connected={connected}
+          caps={caps}
+          actions={actions}
+        />
         <main className="workspace">
           {initiativeOpen && (
             <InitiativePanel
@@ -172,11 +236,8 @@ export default function App() {
           )}
           <Board
             room={room}
-            selected={selected}
-            onSelect={(id) => {
-              setSelected(id);
-              if (id) setTab('tokens');
-            }}
+            selected={selectedIds}
+            onSelect={select}
             actions={actions}
             tool={tool}
             drawColor={drawColor}
@@ -221,20 +282,29 @@ export default function App() {
                     </button>
                   </section>
                 )}
-                <Inspector
-                  token={token}
-                  dm={dm}
-                  actions={actions}
-                  connected={connected}
-                  tokenBytes={caps?.tokenBytes}
-                  tokenEdge={caps?.tokenEdge}
-                  maxTokens={caps?.maxTokens}
-                />
+                {selectedIds.length > 1 && (
+                  <section className="panel" role="status">
+                    已选 {selectedIds.length} 枚棋子{dm ? ' · 按 Delete 批量删除' : ''}
+                  </section>
+                )}
+                {selectedIds.length <= 1 && (
+                  <Inspector
+                    token={token}
+                    dm={dm}
+                    actions={actions}
+                    connected={connected}
+                    tokenBytes={caps?.tokenBytes}
+                    tokenEdge={caps?.tokenEdge}
+                    maxTokens={caps?.maxTokens}
+                  />
+                )}
                 <TokenList
                   maxTokens={caps?.maxTokens}
                   tokens={room.tokens}
-                  selected={selected}
-                  onSelect={setSelected}
+                  selected={selectedIds}
+                  onSelect={select}
+                  onClone={dm ? clone : undefined}
+                  connected={connected}
                 />
               </div>
               <div hidden={tab !== 'notes'}>
@@ -242,6 +312,9 @@ export default function App() {
               </div>
               <div hidden={tab !== 'dm'}>
                 <DMPanel
+                  maps={room.maps}
+                  currentMapId={room.currentMapId}
+                  maxMaps={caps?.maxMaps}
                   mapBytes={caps?.mapBytes}
                   mapPixels={caps?.mapPixels}
                   mapEdge={caps?.mapEdge}

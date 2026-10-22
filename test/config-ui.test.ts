@@ -76,7 +76,7 @@ test('effective limits appear in panels; local notes use configured UTF-8 bytes'
       root.render(
         createElement(TokenList, {
           tokens: room.tokens,
-          selected: null,
+          selected: [],
           onSelect() {},
           maxTokens: 3,
         }),

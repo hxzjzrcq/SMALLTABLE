@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import type { PublicToken, Token } from '../../shared/model';
 import type { SmalltableClient } from '../controller';
 export function Inspector({
@@ -125,6 +125,22 @@ function TokenEditor({
   tokenEdge?: number;
   maxTokens?: number;
 }) {
+  const pendingUpload = useRef<string | undefined>(undefined);
+  const active = useRef(true);
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+      if (pendingUpload.current) void actions.cancelUpload(pendingUpload.current).catch(() => {});
+    };
+  }, [actions]);
+  async function releaseUpload() {
+    const id = pendingUpload.current;
+    if (id) {
+      await actions.cancelUpload(id);
+      pendingUpload.current = undefined;
+    }
+  }
   const [draft, setDraft] = useState<Token>({ ...token, secret: token.secret ?? '' }),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
@@ -138,7 +154,13 @@ function TokenEditor({
     }
     setBusy(true);
     try {
+      await releaseUpload();
       const image = await actions.upload(file, 'token');
+      if (!active.current) {
+        if (image.uploadId) await actions.cancelUpload(image.uploadId);
+        return;
+      }
+      pendingUpload.current = image.uploadId;
       field('asset', image.asset);
       setError('图片已准备，点击保存修改后生效');
     } catch (e) {
@@ -156,6 +178,7 @@ function TokenEditor({
         if (!latest) return;
         actions.send({
           type: 'edit',
+          uploadId: pendingUpload.current,
           token: { ...draft, note: latest.note, x: latest.x, y: latest.y, angle: latest.angle },
         });
         setError('修改已提交；请留意顶部保存状态');
@@ -223,11 +246,33 @@ function TokenEditor({
             }}
           />
         </label>
-        <button type="button" disabled={!connected} onClick={() => field('asset', null)}>
+        <button
+          type="button"
+          disabled={!connected}
+          onClick={() => {
+            void releaseUpload()
+              .then(() => field('asset', null))
+              .catch((e) => setError(String(e)));
+          }}
+        >
           使用无图片外观
         </button>
       </div>
       <div className="button-row">
+        <button
+          type="button"
+          disabled={busy || !connected}
+          onClick={() => {
+            void releaseUpload()
+              .then(() => {
+                setDraft({ ...token, secret: token.secret ?? '' });
+                setError('编辑已取消');
+              })
+              .catch((e) => setError(String(e)));
+          }}
+        >
+          取消编辑
+        </button>
         <button className="primary" disabled={!connected || busy}>
           保存修改
         </button>
@@ -238,20 +283,9 @@ function TokenEditor({
             maxTokens === undefined ||
             (actions.getSnapshot().room?.tokens.length ?? 0) >= maxTokens
           }
-          onClick={() =>
-            actions.send({
-              type: 'create',
-              token: {
-                ...token,
-                secret: token.secret ?? '',
-                id: crypto.randomUUID(),
-                x: token.x + 24,
-                y: token.y + 24,
-              },
-            })
-          }
+          onClick={() => actions.cloneToken(token.id)}
         >
-          复制
+          克隆
         </button>
         <button
           className="danger"
@@ -277,13 +311,18 @@ export const TokenList = memo(
     tokens,
     selected,
     onSelect,
+    onClone,
+    connected = true,
     maxTokens,
   }: {
     tokens: PublicToken[];
-    selected: string | null;
-    onSelect: (id: string) => void;
+    selected: readonly string[];
+    onSelect: (id: string, additive?: boolean) => void;
+    onClone?: (id: string) => void;
+    connected?: boolean;
     maxTokens?: number;
   }) {
+    const selection = new Set(selected);
     return (
       <section className="panel">
         <h2>
@@ -294,17 +333,29 @@ export const TokenList = memo(
         </h2>
         <div className="token-list">
           {tokens.map((t, i) => (
-            <button
-              key={t.id}
-              className={selected === t.id ? 'active' : ''}
-              onClick={() => onSelect(t.id)}
-            >
-              <span
-                className="swatch"
-                style={{ background: t.color, borderRadius: t.shape === 'circle' ? '50%' : 2 }}
-              />
-              {t.name || t.label || `棋子 ${i + 1}`}
-            </button>
+            <div className="token-list-row" key={t.id}>
+              <button
+                data-board-selection="true"
+                aria-pressed={selection.has(t.id)}
+                className={selection.has(t.id) ? 'active' : ''}
+                onClick={(e) => onSelect(t.id, e.shiftKey)}
+              >
+                <span
+                  className="swatch"
+                  style={{ background: t.color, borderRadius: t.shape === 'circle' ? '50%' : 2 }}
+                />
+                {t.name || t.label || `棋子 ${i + 1}`}
+              </button>
+              {onClone && (
+                <button
+                  aria-label={`克隆 ${t.name || t.label || `棋子 ${i + 1}`}`}
+                  disabled={!connected || maxTokens === undefined || tokens.length >= maxTokens}
+                  onClick={() => onClone(t.id)}
+                >
+                  克隆
+                </button>
+              )}
+            </div>
           ))}
           {!tokens.length && <p className="empty">桌面暂无棋子</p>}
         </div>
@@ -313,6 +364,8 @@ export const TokenList = memo(
   },
   (a, b) =>
     a.selected === b.selected &&
+    a.onClone === b.onClone &&
+    a.connected === b.connected &&
     a.maxTokens === b.maxTokens &&
     a.onSelect === b.onSelect &&
     a.tokens.length === b.tokens.length &&

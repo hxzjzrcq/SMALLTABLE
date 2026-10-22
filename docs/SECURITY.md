@@ -1,21 +1,21 @@
 # 当前安全与授权
 
-适用于 SMALLTABLE 0.6.0。普通限额见 [配置](CONFIGURATION.md)，运行部署见 [依赖与部署](DEPENDENCIES.md)。
+适用于 SMALLTABLE 0.6.5。普通限额见 [配置](CONFIGURATION.md)，运行部署见 [依赖与部署](DEPENDENCIES.md)。
 
 ## 授权登记
 
 `src/server/permissions.ts` 分别登记 HTTP 路由和 WebSocket 动作；未知动作默认拒绝，包括 DM。新增 schema 命令必须同时登记权限；已登记但没有实现的命令明确报错，不保存、不增加 revision、不广播。
 
-| WebSocket 权限 | 明确列出的动作                                                                                                                     |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| 普通玩家及 DM  | activity、unlock、lock、move、rotate、note、roll、initiative.put、initiative.delete、initiative.order、drawing.add、drawing.delete |
-| 仅 DM          | drawing.clear、create、edit、delete、clear、grid、names                                                                            |
+| WebSocket 权限 | 明确列出的动作                                                                                                                                |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 普通玩家及 DM  | activity、unlock、lock、move、rotate、note、roll、initiative.put、initiative.delete、initiative.order、drawing.add、drawing.delete            |
+| 仅 DM          | drawing.clear、create、edit、delete、clear、grid、names、map.select、map.delete、map.scale、music.play、music.pause、music.stop、music.delete |
 
-| HTTP 权限                               | 路由                                                                           |
-| --------------------------------------- | ------------------------------------------------------------------------------ |
-| 无会话可访问                            | GET /api/config、POST /api/login                                               |
-| 有效会话                                | GET /media/:id、GET /api/health                                                |
-| 有效会话、DM 已解锁且保留原有 s.ws 条件 | POST /api/image/:kind、GET /api/backup、POST /api/restore、POST /api/passwords |
+| HTTP 权限                               | 路由                                                                                                                     |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| 无会话可访问                            | GET /api/config、POST /api/login                                                                                         |
+| 有效会话                                | GET /media/:id、GET /audio/:id、GET /api/health                                                                          |
+| 有效会话、DM 已解锁且保留原有 s.ws 条件 | POST /api/image/:kind、GET /api/backup、POST /api/restore、POST /api/passwords、POST /api/music、POST /api/upload/cancel |
 
 0.6.0 明确改变 health 行为：匿名请求返回 401。静态页面及内嵌工具资源仍可加载。管理路由在入队前和执行队列时均检查；密码修改再次验证当前 DM 密码。epoch、来源、人数、名单和限流仍由各自入口检查；不是权限登记的替代品。React 显隐不作为授权依据。
 
@@ -25,7 +25,7 @@
 
 Config 不读取、持有或传递密码。启动组装层 `bootstrap.ts` 打开 MAIN 的 CredentialStore；房间服务只取得即时验密与修改方法。CredentialStore 是唯一凭证来源，不建立环境变量固定校验器。启动失败、正常关闭及监听失败均释放凭证持有的数据目录互斥；异常退出由操作系统释放。
 
-Storage 只取得 `{ dataDir, images, backup, parse }`，不读环境变量、不接触凭证。房间仍使用 schemaVersion 2，并保留 schema 1 显式迁移。备份有意包含 DM 私有说明及图片，不含凭证、会话令牌、玩家私人笔记或属性工具的本机数据。私人笔记仅保存在玩家浏览器，活动消息不携带笔记内容。
+Storage 只取得 `{ dataDir, images, resourceBytes, backup, parse }`，不读环境变量、不接触凭证。房间使用 schemaVersion 3，旧版本在加载与恢复时明确拒绝。备份有意包含 DM 私有说明及图片，不含凭证、会话令牌、玩家私人笔记、属性工具本机数据、音乐文件、音乐元数据或播放状态。私人笔记仅保存在玩家浏览器，活动消息不携带笔记内容。
 
 新图片上传完整检查、解码和转码；棋子资源引用只检查 ID、存在性、字节、格式、动画页数和尺寸，不重复转码。编辑时引用不变则跳过图片处理。恢复仍沿用完整校验及重编码流程；ZIP 解压峰值内存和恢复重编码开销并未在本轮解决。图片与备份限额的唯一说明见 [配置](CONFIGURATION.md)。
 

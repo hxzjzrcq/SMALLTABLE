@@ -18,6 +18,9 @@ import { Limiter } from './auth.js';
 import type { CredentialStore } from './credentials.js';
 import { canCommand, canHttp, type HttpOperation } from './permissions.js';
 import { passwordChangeSchema } from '../shared/passwords.js';
+import { Music } from './music.js';
+import { inspectMp3 } from './mp3.js';
+import { audioId } from '../shared/music.js';
 import { Storage } from './storage.js';
 import { backupLimits, type Config } from './config.js';
 interface Session {
@@ -40,10 +43,17 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
     dataDir: cfg.dataDir,
     images: { mapBytes, mapPixels, mapEdge, tokenBytes, tokenEdge },
     backup: budgets,
+    resourceBytes: cfg.caps.resourceBytes,
     parse: (input) => parseRoom(input, cfg.caps),
   });
+  const music = new Music(cfg.dataDir, cfg.caps, () =>
+    broadcast({ type: 'music', music: music.snapshot() }),
+  );
+  await music.load();
   const commandSchema = createCommandSchema(cfg.caps);
   let room: Room = (await storage.load()) ?? initialRoom();
+  await storage.collect(room, music.tracks);
+  await storage.assertBudget();
   let epoch = 0,
     credentialGeneration = 0;
   const sessions = new Map<string, Session>(),
@@ -55,7 +65,11 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
   const server = createServer(app);
   const wss = new WebSocketServer({
     noServer: true,
-    maxPayload: Math.max(64 * 1024, cfg.caps.maxNames * 1024 + 1024),
+    maxPayload: Math.max(
+      64 * 1024,
+      cfg.caps.maxNames * 1024 + 1024,
+      cfg.caps.maxTokens * 40 + 1024,
+    ),
     perMessageDeflate: false,
     handleProtocols: () => 'tabletop',
   });
@@ -92,6 +106,7 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
   const snapshot = (s: Session) => {
     send(s, { type: 'snapshot', room: project(room, s.dm), dm: s.dm, epoch, caps: cfg.caps });
     send(s, { type: 'saved', revision: savedRevision });
+    send(s, { type: 'music', music: music.snapshot() });
   };
   const snapshots = () => {
     for (const s of sessions.values()) snapshot(s);
@@ -123,6 +138,30 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
       if (pending) clearTimeout(pending);
       pending = setTimeout(() => void enqueue(persist), 150);
     } else if (!pending) pending = setTimeout(() => void enqueue(persist), 2000);
+  }
+  async function cleanupResources() {
+    try {
+      await storage.collect(room, music.tracks);
+    } catch (error) {
+      logEvent('resource.cleanup_failed', { error });
+      broadcast({ type: 'error', message: '资源清理失败，容量尚未释放' });
+    }
+  }
+  async function commitRoom(candidate: Room, invalidate = false) {
+    candidate.revision = room.revision + 1;
+    try {
+      await storage.save(candidate);
+    } catch (error) {
+      logEvent('storage.save_failed', { error });
+      throw Error('保存失败，变更未提交');
+    }
+    room = candidate;
+    if (invalidate) epoch++;
+    savedRevision = room.revision;
+    dirty = false;
+    saveError = false;
+    await cleanupResources();
+    snapshots();
   }
   const originOK = (req: Request | import('node:http').IncomingMessage) => {
     const origin = req.headers.origin;
@@ -299,23 +338,29 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
         if (!Buffer.isBuffer(req.body)) throw Error('需要 ZIP 备份');
         await enqueue(async () => {
           requireDM(req, 'POST /api/restore');
+          await storage.collect(room, music.tracks);
           const prepared = await storage.prepareRestore(req.body);
-          await prepared.commitAssets();
-          const nextRoom = prepared.room;
-          nextRoom.revision = room.revision + 1;
+          await prepared.checkBudget(room);
           try {
-            await storage.save(nextRoom);
-          } catch (error) {
-            logEvent('storage.save_failed', { error });
-            throw error;
+            await prepared.commitAssets();
+            const nextRoom = prepared.room;
+            nextRoom.revision = room.revision + 1;
+            try {
+              await storage.save(nextRoom);
+            } catch (error) {
+              logEvent('storage.save_failed', { error });
+              throw error;
+            }
+            room = nextRoom;
+            savedRevision = room.revision;
+            epoch++;
+            dirty = false;
+            saveError = false;
+            snapshots();
+            broadcast({ type: 'saved', revision: room.revision });
+          } finally {
+            await storage.collect(room, music.tracks);
           }
-          room = nextRoom;
-          savedRevision = room.revision;
-          epoch++;
-          dirty = false;
-          saveError = false;
-          snapshots();
-          broadcast({ type: 'saved', revision: room.revision });
         });
         res.json({ ok: true });
       } catch (e) {
@@ -348,15 +393,40 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
         const image = await enqueue(async () => {
           requireDM(req, 'POST /api/image/:kind');
           const kind = req.params.kind as 'map' | 'token';
-          await storage.collect(room);
-          const image = await storage.put(req.body, kind);
-          if (kind === 'map') {
-            room.map = image;
-            epoch++;
-            changed(true);
-            snapshots();
+          if (kind === 'map' && room.maps.length >= cfg.caps.maxMaps)
+            throw Error(`地图已达 ${cfg.caps.maxMaps} 张`);
+          const name = decodeURIComponent(String(req.headers['x-file-name'] ?? '图片'));
+          if (Buffer.byteLength(name) > 1024) throw Error('文件名过长');
+          await storage.collect(room, music.tracks);
+          const image = await storage.validateImage(req.body, kind);
+          let asset: string | undefined;
+          try {
+            asset = await storage.install(image.data, 'webp');
+            if (kind === 'map') {
+              const candidate = structuredClone(room);
+              const id = randomUUID();
+              candidate.maps.push({
+                id,
+                name,
+                asset,
+                width: image.width,
+                height: image.height,
+                scale: 100,
+              });
+              candidate.currentMapId = id;
+              await commitRoom(candidate);
+              return { asset, width: image.width, height: image.height };
+            }
+            return {
+              asset,
+              width: image.width,
+              height: image.height,
+              uploadId: storage.temporary(asset, auth(req)!.id),
+            };
+          } catch (e) {
+            await storage.collect(room, music.tracks);
+            throw e;
           }
-          return image;
         });
         res.json(image);
       } catch (e) {
@@ -364,6 +434,69 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
       }
     },
   );
+  app.post('/api/upload/cancel', express.json({ limit: '2kb' }), async (req, res, next) => {
+    try {
+      requireDM(req, 'POST /api/upload/cancel');
+      await enqueue(async () => {
+        const session = requireDM(req, 'POST /api/upload/cancel');
+        if (typeof req.body?.uploadId !== 'string') throw Error('缺少暂存 ID');
+        storage.release(req.body.uploadId, session.id);
+        await storage.collect(room, music.tracks);
+      });
+      res.json({ ok: true });
+    } catch (e) {
+      next(e);
+    }
+  });
+  app.post(
+    '/api/music',
+    (req, res, next) => {
+      try {
+        requireDM(req, 'POST /api/music');
+        if (!uploadLimiter.take(auth(req)!.id)) throw Error('上传过于频繁');
+        next();
+      } catch (e) {
+        next(e);
+      }
+    },
+    express.raw({ type: 'application/octet-stream', limit: cfg.caps.musicBytes }),
+    async (req, res, next) => {
+      try {
+        await enqueue(async () => {
+          requireDM(req, 'POST /api/music');
+          if (!Buffer.isBuffer(req.body) || req.body.length > cfg.caps.musicBytes)
+            throw Error('音乐大小或格式无效');
+          if (music.tracks.length >= cfg.caps.maxMusic)
+            throw Error(`音乐已达 ${cfg.caps.maxMusic} 首`);
+          const name = decodeURIComponent(String(req.headers['x-file-name'] ?? '音乐.mp3'));
+          if (name.length > 1024) throw Error('文件名过长');
+          const { duration } = inspectMp3(req.body);
+          await storage.collect(room, music.tracks);
+          try {
+            const asset = await storage.install(req.body, 'mp3');
+            await music.save([...music.tracks, { id: randomUUID(), name, asset, duration }]);
+            broadcast({ type: 'music', music: music.snapshot() });
+          } finally {
+            await storage.collect(room, music.tracks);
+          }
+        });
+        res.json({ ok: true });
+      } catch (e) {
+        next(e);
+      }
+    },
+  );
+  app.get('/audio/:id', (req, res) => {
+    if (!canHttp(auth(req), 'GET /audio/:id')) return res.sendStatus(401);
+    const id = String(req.params.id);
+    if (!audioId.safeParse(id).success || !music.tracks.some((t) => t.asset === id))
+      return res.sendStatus(404);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.type('audio/mpeg').sendFile(path.join(music.audioDir, id), (error) => {
+      if (error && !res.headersSent)
+        res.status((error as Error & { status?: number }).status === 416 ? 416 : 404).end();
+    });
+  });
   app.get('/media/:id', (req, res) => {
     if (!canHttp(auth(req), 'GET /media/:id')) return res.sendStatus(401);
     const id = String(req.params.id);
@@ -382,6 +515,7 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
     if (route === '/api/restore') logEvent('backup.restore_failed', { error: err });
     else if (route === '/api/backup') logEvent('backup.create_failed', { error: err });
     else if (route === '/api/image/:kind') logEvent('image.process_failed', { error: err });
+    else if (route === '/api/music') logEvent('music.failed', { error: err });
     else if (route === '/api/login') logEvent('auth.login_failed', { error: err });
     res.status(400).json({ error: err.message || '请求失败' });
   });
@@ -453,6 +587,42 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
             if (c.type === 'lock') {
               s.dm = false;
               snapshot(s);
+              return;
+            }
+            if (c.type === 'map.select' || c.type === 'map.delete' || c.type === 'map.scale') {
+              const candidate = structuredClone(room);
+              const map = candidate.maps.find((m) => m.id === c.id);
+              if (!map) throw Error('地图不存在');
+              if (c.type === 'map.select') candidate.currentMapId = c.id;
+              else if (c.type === 'map.scale') map.scale = c.scale;
+              else {
+                candidate.maps = candidate.maps.filter((m) => m.id !== c.id);
+                if (candidate.currentMapId === c.id)
+                  candidate.currentMapId = candidate.maps[0]?.id ?? null;
+              }
+              await commitRoom(candidate);
+              return;
+            }
+            if (
+              c.type === 'music.play' ||
+              c.type === 'music.pause' ||
+              c.type === 'music.stop' ||
+              c.type === 'music.delete'
+            ) {
+              if (c.type === 'music.delete') {
+                if (!music.tracks.some((t) => t.id === c.id)) throw Error('曲目不存在');
+                await music.save(music.tracks.filter((t) => t.id !== c.id));
+                music.removed(c.id);
+                await cleanupResources();
+                broadcast({ type: 'music', music: music.snapshot() });
+              } else if (c.type === 'music.play') {
+                music.control('play', c.id);
+                send(s, {
+                  type: 'music',
+                  music: music.snapshot(),
+                  acceptedPushId: music.snapshot().playback.pushId!,
+                });
+              } else music.control(c.type === 'music.pause' ? 'pause' : 'stop');
               return;
             }
             if (c.type === 'move' || c.type === 'rotate' || c.type === 'note') {
@@ -544,45 +714,67 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
               snapshots();
               return;
             }
+            const candidate = structuredClone(room);
             switch (c.type) {
               case 'create':
-                if (room.tokens.length >= cfg.caps.maxTokens)
+                if (candidate.tokens.length >= cfg.caps.maxTokens)
                   throw Error(`棋子数量已达 ${cfg.caps.maxTokens}`);
-                if (room.tokens.some((t) => t.id === c.token.id)) throw Error('重复棋子 ID');
-                if (c.token.asset) await storage.checkImage(c.token.asset, 'token');
-                room.tokens.push(c.token);
+                if (candidate.tokens.some((t) => t.id === c.token.id)) throw Error('重复棋子 ID');
+                if (c.token.asset) {
+                  storage.checkBinding(c.token.asset, c.uploadId, s.id, room);
+                  await storage.checkImage(c.token.asset, 'token');
+                }
+                candidate.tokens.push(c.token);
                 break;
               case 'edit': {
-                const i = room.tokens.findIndex((t) => t.id === c.token.id);
+                const i = candidate.tokens.findIndex((t) => t.id === c.token.id);
                 if (i < 0) throw Error('棋子不存在');
-                if (c.token.asset && c.token.asset !== room.tokens[i].asset)
+                if (c.token.asset && c.token.asset !== candidate.tokens[i].asset) {
+                  storage.checkBinding(c.token.asset, c.uploadId, s.id, room);
                   await storage.checkImage(c.token.asset, 'token');
-                room.tokens[i] = c.token;
+                }
+                candidate.tokens[i] = c.token;
                 break;
               }
               case 'delete':
-                room.tokens = room.tokens.filter((t) => t.id !== c.id);
-                for (const p of sessions.values()) p.moveAt.delete(c.id);
+              case 'delete.many': {
+                if (c.type === 'delete.many' && c.epoch !== epoch)
+                  throw Error('桌面已更新，请重新操作');
+                const ids = new Set(c.type === 'delete' ? [c.id] : c.ids);
+                candidate.tokens = candidate.tokens.filter((t) => !ids.has(t.id));
+                // Missing IDs may have been deleted by another DM; never recreate them.
+                if (c.type === 'delete.many' && candidate.tokens.length === room.tokens.length) {
+                  snapshot(s);
+                  return;
+                }
                 break;
+              }
               case 'clear':
-                room.tokens = [];
+                candidate.tokens = [];
+                candidate.drawings = [];
                 for (const p of sessions.values()) p.moveAt.clear();
-                epoch++;
                 break;
               case 'grid':
-                room.grid = c.grid;
-                epoch++;
+                candidate.grid = c.grid;
                 break;
               case 'names':
                 if (c.names.some((n) => !n.trim())) throw Error('名称不能为空');
-                room.names = [...new Set(c.names)];
+                candidate.names = [...new Set(c.names)];
                 break;
               default:
                 throw Error('未实现的房间命令');
             }
-            changed(true);
-            snapshots();
+            await commitRoom(candidate, c.type === 'clear' || c.type === 'grid');
+            if (c.type === 'delete' || c.type === 'delete.many') {
+              const ids = c.type === 'delete' ? [c.id] : c.ids;
+              for (const p of sessions.values()) for (const id of ids) p.moveAt.delete(id);
+            }
+            if ((c.type === 'create' || c.type === 'edit') && c.uploadId) {
+              storage.release(c.uploadId, s.id);
+              await storage.collect(room, music.tracks);
+            }
           } catch (e) {
+            snapshot(s);
             send(s, { type: 'error', message: e instanceof Error ? e.message : '操作失败' });
           }
         });
@@ -617,17 +809,22 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
       s.alive = false;
       s.ws.ping();
     }
-    if (dirty) void enqueue(persist);
+    void enqueue(async () => {
+      if (dirty) await persist();
+      await storage.collect(room, music.tracks);
+    }).catch((error) => logEvent('resource.cleanup_failed', { error }));
   }, 10000);
   maintenance.unref();
   return {
     app,
     server,
     storage,
+    music,
     getRoom: () => structuredClone(room),
     async close() {
       if (closed) return;
       closed = true;
+      music.close();
       clearInterval(maintenance);
       if (pending) clearTimeout(pending);
       for (const s of sessions.values()) s.ws?.terminate();

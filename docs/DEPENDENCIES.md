@@ -74,3 +74,9 @@ SMALLTABLE 的属性工具仍走原有 Vite 入口和同源 iframe，页面不�
 部署验收至少覆盖：外部浏览器进入、两端同步、DM 解锁、图片上传、重启后桌面恢复及备份恢复。构建成功和无头浏览器可见不能单独证明外部用户能够访问。
 
 文档维护原则见 [README](../README.md#文档维护)。
+
+## 0.6.5 浏览器验证
+
+新增 `playwright` 仅为开发依赖；运行时仍无音频处理依赖，生产不使用 FFmpeg。浏览器测试默认使用 Playwright 的 Chromium，也可通过 `SMALLTABLE_CHROMIUM` 指定已安装的 Chromium 可执行文件。本次环境使用临时 Chromium 153 二进制进行验证，不将该二进制或临时解包工具加入源码包。
+
+测试样本为本地生成的纯音 MP3，来源与重新生成命令见 `test/fixtures/README.md`。重新运行已有样本不需要 FFmpeg；只有重建样本时使用。

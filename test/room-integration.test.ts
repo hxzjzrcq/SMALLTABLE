@@ -159,8 +159,9 @@ test('save failure reports unsaved state and a later successful write recovers',
     await dm.wait((e) => e.type === 'error' && e.message.includes('保存失败'), mark);
     x.service.storage.save = original;
     const later = dm.events.length;
-    dm.send({ type: 'rotate', id: t.id, angle: 90, epoch: 0 });
-    await dm.wait((e) => e.type === 'saved' && e.revision === 2, later);
+    assert.equal(x.service.getRoom().tokens.length, 0, 'failed create is not committed');
+    dm.send({ type: 'create', token: { ...t, angle: 90 } });
+    await dm.wait((e) => e.type === 'saved' && e.revision === 1, later);
     const saved = JSON.parse(await readFile(path.join(x.dir, 'room.json'), 'utf8'));
     assert.equal(saved.tokens[0].angle, 90);
   } finally {

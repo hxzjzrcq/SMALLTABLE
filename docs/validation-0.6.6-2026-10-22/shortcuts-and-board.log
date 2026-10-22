@@ -1,0 +1,13 @@
+✔ pointer line preview stays local, release submits once, cancel/pinch do not draw; line selection deletes (338.459022ms)
+✔ shortcut guards, cancellation consumption and listener cleanup (120.520671ms)
+✔ selection-only rotation and player public-note-only controls (32.037607ms)
+✔ transparent image hit rectangle supports selecting, dragging and rotation; plain token shape remains (279.677304ms)
+✔ live room updates preserve drafts and scroll, refresh visible data, and remove private controls on revocation (506.072253ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1705.074948

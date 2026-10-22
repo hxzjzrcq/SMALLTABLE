@@ -1,0 +1,21 @@
+{
+  "date": "2026-10-22",
+  "version": "0.6.7",
+  "baselineSHA256": "15e2912d6a38aab00b5798c4e7b9a8087c774b647422fffe21eb000d6e00dddc",
+  "versionsConsistent": true,
+  "roomSchemaVersion": 3,
+  "coreSourceUnchanged": true,
+  "existingHistoricalRecordsUnchanged": true,
+  "dependencyVersionsUnchanged": true,
+  "configFileUnchanged": true,
+  "builtHTMLReferencesExist": true,
+  "sourceTestAndArtifactHashesRecorded": true,
+  "excluded": [
+    "node_modules",
+    ".git",
+    ".env",
+    "data",
+    "real credentials",
+    "private backups"
+  ]
+}

@@ -71,6 +71,18 @@ for (const revoke of ['lock', 'disconnect', 'password'] as const)
           ['POST', '/api/image/token', new Uint8Array([0]), 'application/octet-stream'],
           [
             'POST',
+            '/api/music',
+            new Uint8Array(await readFile(new URL('./fixtures/tone.mp3', import.meta.url))),
+            'application/octet-stream',
+          ],
+          [
+            'POST',
+            '/api/upload/cancel',
+            JSON.stringify({ uploadId: '00000000-0000-4000-8000-000000000001' }),
+            'application/json',
+          ],
+          [
+            'POST',
             '/api/passwords',
             JSON.stringify({
               currentDMPassword: dmPassword,
@@ -97,6 +109,15 @@ for (const revoke of ['lock', 'disconnect', 'password'] as const)
           );
           await arrived;
         }
+        const managementMark = a.events.length;
+        a.send({ type: 'map.select', id: '00000000-0000-4000-8000-000000000001' });
+        a.send({ type: 'map.scale', id: '00000000-0000-4000-8000-000000000001', scale: 100 });
+        a.send({ type: 'map.delete', id: '00000000-0000-4000-8000-000000000001' });
+        a.send({ type: 'music.play', id: '00000000-0000-4000-8000-000000000001' });
+        a.send({ type: 'music.pause' });
+        a.send({ type: 'music.stop' });
+        a.send({ type: 'music.delete', id: '00000000-0000-4000-8000-000000000001' });
+        a.send({ type: 'delete.many', ids: ['00000000-0000-4000-8000-000000000001'], epoch: 0 });
         a.send({ type: 'clear' });
         const pong = once(a.ws, 'pong');
         a.ws.ping();
@@ -111,6 +132,18 @@ for (const revoke of ['lock', 'disconnect', 'password'] as const)
         if (rotateResult) assert.equal((await rotateResult).status, 200);
         const results = await Promise.all(pending);
         assert.ok(results.every((r) => r.status === 400 || r.status === 401));
+        if (revoke !== 'disconnect') {
+          const denied = () =>
+            a.events
+              .slice(managementMark)
+              .filter((e) => e.type === 'error' && e.message === '操作未授权');
+          await a.until((e) => e.type === 'error' && denied().length === 9, managementMark);
+          assert.equal(
+            denied().length,
+            9,
+            'all nine queued commands must reach authorization rejection',
+          );
+        }
         assert.deepEqual(f.service.getRoom(), before);
         if (revoke !== 'password')
           assert.equal(

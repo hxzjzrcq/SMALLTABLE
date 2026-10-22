@@ -28,7 +28,7 @@ test('restore and disk load apply deployment limits; backup budgets grow with li
     await assert.rejects(() => low.load(), /存档损坏/);
     await assert.rejects(() => low.prepareRestore(zip));
     const limits = backupLimits(cfg.caps);
-    assert.equal(limits.entries, 302);
+    assert.equal(limits.entries, 300 + cfg.caps.maxMaps + 1);
     assert.ok(limits.bytes > backupLimits({ ...cfg.caps, maxTokens: 3 }).bytes);
     const excess = new AdmZip();
     excess.addFile('room.json', Buffer.from(JSON.stringify(initialRoom())));

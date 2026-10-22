@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { measure, type Drawing, type View } from '../../shared/model';
+import { WORLD_LIMIT, measure, type Drawing, type View } from '../../shared/model';
 import type { SmalltableClient } from '../controller';
-import { zoomCamera, pinchCamera, type Point, type Camera } from '../camera';
+import {
+  fitRoomCamera,
+  clampScale,
+  zoomCamera,
+  pinchCamera,
+  type Point,
+  type Camera,
+} from '../camera';
 export function Board({
   room,
   selected,
@@ -15,8 +22,8 @@ export function Board({
   maxDrawings,
 }: {
   room: View;
-  selected: string | null;
-  onSelect: (id: string | null) => void;
+  selected: readonly string[];
+  onSelect: (id: string | null, additive?: boolean) => void;
   actions: SmalltableClient;
   tool: 'move' | 'measure' | 'draw';
   drawColor?: Drawing['color'];
@@ -25,6 +32,8 @@ export function Board({
   connected: boolean;
   maxDrawings?: number;
 }) {
+  const selection = new Set(selected);
+  const map = room.maps.find((m) => m.id === room.currentMapId);
   const svg = useRef<SVGSVGElement>(null),
     host = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 800, height: 600 });
@@ -35,7 +44,13 @@ export function Board({
           localStorage.getItem('tabletop.camera') ??
           'null',
       );
-      if (c && Number.isFinite(c.x) && Number.isFinite(c.y) && c.scale >= 0.03 && c.scale <= 8)
+      if (
+        c &&
+        Number.isFinite(c.x) &&
+        Number.isFinite(c.y) &&
+        Number.isFinite(c.scale) &&
+        c.scale === clampScale(c.scale)
+      )
         return c;
     } catch {}
     return { x: -100, y: -100, scale: 1 };
@@ -86,27 +101,7 @@ export function Board({
       fitted.current = true;
       return;
     }
-    const points = [
-      { x: 0, y: 0 },
-      { x: room.map?.width ?? 640, y: room.map?.height ?? 480 },
-      ...room.drawings.flatMap((d) => [
-        { x: d.x1, y: d.y1 },
-        { x: d.x2, y: d.y2 },
-      ]),
-      ...room.tokens.flatMap((t) => [
-        { x: t.x - (t.size * room.grid.cell) / 2, y: t.y - (t.size * room.grid.cell) / 2 },
-        { x: t.x + (t.size * room.grid.cell) / 2, y: t.y + (t.size * room.grid.cell) / 2 },
-      ]),
-    ];
-    const minX = Math.min(...points.map((p) => p.x)) - 64,
-      minY = Math.min(...points.map((p) => p.y)) - 64,
-      maxX = Math.max(...points.map((p) => p.x)) + 64,
-      maxY = Math.max(...points.map((p) => p.y)) + 64;
-    setCamera({
-      x: minX,
-      y: minY,
-      scale: Math.max(0.03, Math.min(8, size.width / (maxX - minX), size.height / (maxY - minY))),
-    });
+    setCamera(fitRoomCamera(room, size.width, size.height));
     // Fit is an explicit user action; ordinary snapshots must not reset the camera.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitSignal]);
@@ -118,6 +113,15 @@ export function Board({
   function start(e: React.PointerEvent, id?: string) {
     if (e.button !== 0 && e.button !== 1 && e.button !== 2) return;
     e.preventDefault();
+    svg.current?.focus({ preventScroll: true });
+    if (e.button === 0 && tool === 'move' && e.shiftKey) {
+      onSelect(id ?? null, true);
+      drag.current = null;
+      setPreview(null);
+      setLine(null);
+      setSelectedDrawing(null);
+      return;
+    }
     svg.current?.setPointerCapture(e.pointerId);
     if (e.pointerType === 'touch') {
       touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -152,6 +156,7 @@ export function Board({
       };
       if (e.button === 0) onSelect(null);
     } else if (tool === 'measure' || (tool === 'draw' && connected)) {
+      if (tool === 'draw' && (Math.abs(p.x) > WORLD_LIMIT || Math.abs(p.y) > WORLD_LIMIT)) return;
       drag.current = { kind: tool, start: p, origin: p, last: p, sent: 0, epoch };
       setLine({ a: p, b: p });
     } else if (t && connected) {
@@ -195,12 +200,19 @@ export function Board({
       return;
     }
     if (d.kind === 'measure' || d.kind === 'draw') {
-      d.last = p;
-      setLine({ a: d.start, b: p });
+      const end =
+        d.kind === 'draw'
+          ? {
+              x: Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, p.x)),
+              y: Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, p.y)),
+            }
+          : p;
+      d.last = end;
+      setLine({ a: d.start, b: end });
       return;
     }
-    const x = d.origin.x + p.x - d.start.x,
-      y = d.origin.y + p.y - d.start.y;
+    const x = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, d.origin.x + p.x - d.start.x)),
+      y = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, d.origin.y + p.y - d.start.y));
     d.last = { x, y };
     setPreview({ id: d.id!, x, y });
     if (Date.now() - d.sent >= 100) {
@@ -226,7 +238,7 @@ export function Board({
       maxDrawings !== undefined &&
       room.drawings.length < maxDrawings
     ) {
-      const p = point(e);
+      const p = d.last;
       if (Math.hypot(p.x - d.start.x, p.y - d.start.y) * cameraRef.current.scale >= 3)
         actions.addDrawing({
           id: crypto.randomUUID(),
@@ -251,7 +263,7 @@ export function Board({
       const p = point(e),
         c = cameraRef.current,
         box = node.getBoundingClientRect(),
-        scale = Math.max(0.03, Math.min(8, c.scale * Math.exp(-e.deltaY * 0.001)));
+        scale = clampScale(c.scale * Math.exp(-e.deltaY * 0.001));
       setCamera({
         scale,
         x: p.x - (e.clientX - box.left) / scale,
@@ -262,15 +274,16 @@ export function Board({
     return () => node.removeEventListener('wheel', wheel);
   }, []);
   const sorted = [...room.tokens].sort(
-    (a, b) => (a.id === selected ? 1 : 0) - (b.id === selected ? 1 : 0),
+    (a, b) => (selection.has(a.id) ? 1 : 0) - (selection.has(b.id) ? 1 : 0),
   );
-  const selectedToken = room.tokens.find((t) => t.id === selected);
-  const selectedPosition = preview?.id === selected ? preview : selectedToken;
+  const selectedToken =
+    selected.length === 1 ? room.tokens.find((t) => t.id === selected[0]) : undefined;
+  const selectedPosition = preview?.id === selectedToken?.id ? preview : selectedToken;
   return (
     <div ref={host} className={`board ${tool}`}>
-      <div className="board-zoom" aria-label="地图缩放">
+      <div className="board-zoom" aria-label="相机缩放">
         <button
-          aria-label="放大地图"
+          aria-label="放大视图"
           onClick={() =>
             setCamera((c) => zoomCamera(c, { x: size.width / 2, y: size.height / 2 }, 1.25))
           }
@@ -278,7 +291,7 @@ export function Board({
           ＋
         </button>
         <button
-          aria-label="缩小地图"
+          aria-label="缩小视图"
           onClick={() =>
             setCamera((c) => zoomCamera(c, { x: size.width / 2, y: size.height / 2 }, 0.8))
           }
@@ -324,6 +337,7 @@ export function Board({
       )}
       <svg
         ref={svg}
+        tabIndex={0}
         width="100%"
         height="100%"
         viewBox={`${camera.x} ${camera.y} ${size.width / camera.scale} ${size.height / camera.scale}`}
@@ -352,13 +366,13 @@ export function Board({
             />
           </pattern>
         </defs>
-        {room.map ? (
+        {map ? (
           <image
-            href={`/media/${room.map.asset}`}
+            href={`/media/${map.asset}`}
             x="0"
             y="0"
-            width={room.map.width}
-            height={room.map.height}
+            width={(map.width * map.scale) / 100}
+            height={(map.height * map.scale) / 100}
           />
         ) : (
           <rect x="0" y="0" width="640" height="480" fill="#e5e8e9" />
@@ -416,6 +430,8 @@ export function Board({
                 start(e, t.id);
               }}
               className="board-token"
+              aria-pressed={selection.has(t.id)}
+              data-token-id={t.id}
               role="button"
               aria-label={t.name || t.label || '棋子'}
             >
@@ -433,8 +449,8 @@ export function Board({
                 <circle
                   r={s / 2}
                   fill={t.color}
-                  stroke={selected === t.id ? '#ffb000' : '#27333f'}
-                  strokeWidth={(selected === t.id ? 3 : 1) / camera.scale}
+                  stroke={selection.has(t.id) ? '#ffb000' : '#27333f'}
+                  strokeWidth={(selection.has(t.id) ? 3 : 1) / camera.scale}
                 />
               ) : (
                 <rect
@@ -444,8 +460,8 @@ export function Board({
                   height={s}
                   rx={Math.min(3, s / 8)}
                   fill={t.color}
-                  stroke={selected === t.id ? '#ffb000' : '#27333f'}
-                  strokeWidth={(selected === t.id ? 3 : 1) / camera.scale}
+                  stroke={selection.has(t.id) ? '#ffb000' : '#27333f'}
+                  strokeWidth={(selection.has(t.id) ? 3 : 1) / camera.scale}
                 />
               )}
               {t.asset ? (
@@ -472,7 +488,7 @@ export function Board({
                   {t.label}
                 </text>
               )}
-              {selected === t.id && (
+              {selection.has(t.id) && (
                 <rect
                   x={-s / 2 - 3 / camera.scale}
                   y={-s / 2 - 3 / camera.scale}

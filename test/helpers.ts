@@ -17,6 +17,7 @@ export function testStorage(cfg: Config) {
     dataDir: cfg.dataDir,
     images: { mapBytes, mapPixels, mapEdge, tokenBytes, tokenEdge },
     backup: backupLimits(cfg.caps),
+    resourceBytes: cfg.caps.resourceBytes,
     parse: (input) => parseRoom(input, cfg.caps),
   });
 }

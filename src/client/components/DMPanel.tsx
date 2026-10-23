@@ -1,21 +1,22 @@
+import { UploadStatus } from './UploadStatus';
 import { memo, useState } from 'react';
 import { PasswordSettings } from './PasswordSettings';
 import { WORLD_LIMIT, type Room } from '../../shared/model';
 import type { SmalltableClient } from '../controller';
 export const DMPanel = memo(function DMPanel({
+  players = [],
   maps = [],
   currentMapId,
   maxMaps,
   maxNames,
   mapBytes,
-  mapPixels,
-  mapEdge,
   grid,
   names,
   dm,
   actions,
   connected,
 }: {
+  players?: import('../../shared/session').OnlinePlayer[];
   maps?: Room['maps'];
   currentMapId?: string | null;
   maxMaps?: number;
@@ -23,8 +24,6 @@ export const DMPanel = memo(function DMPanel({
   names: string[];
   maxNames?: number;
   mapBytes?: number;
-  mapPixels?: number;
-  mapEdge?: number;
   dm: boolean;
   actions: SmalltableClient;
   connected: boolean;
@@ -70,6 +69,26 @@ export const DMPanel = memo(function DMPanel({
         </form>
       ) : (
         <>
+          <h3>在线玩家</h3>
+          {players.map((player) => (
+            <div key={player.target} className="button-row">
+              <span>
+                {player.name} · {player.dm ? 'DM' : '普通玩家'}
+              </span>
+              {!player.dm && (
+                <button
+                  disabled={!connected}
+                  onClick={() => {
+                    if (window.confirm(`将“${player.name}”移出房间？`))
+                      actions.send({ type: 'player.kick', target: player.target });
+                  }}
+                >
+                  移出房间
+                </button>
+              )}
+            </div>
+          ))}
+          <p className="meta">锁定后转为普通玩家；普通席位已满时将退出。</p>
           <div className="button-row">
             <button onClick={() => actions.send({ type: 'lock' })}>锁定工具箱</button>
             <label className="button">
@@ -95,9 +114,7 @@ export const DMPanel = memo(function DMPanel({
               />
             </label>
           </div>
-          <p className="meta">
-            地图：{mapBytes ?? '—'} 字节 · {mapPixels ?? '—'} 像素 · 单边 {mapEdge ?? '—'} 像素
-          </p>
+          <UploadStatus actions={actions} kind="map" />
           <h3>
             地图列表 {maps.length} / {maxMaps ?? '—'}
           </h3>
@@ -151,6 +168,7 @@ export const DMPanel = memo(function DMPanel({
           />
           <PasswordSettings actions={actions} connected={connected} />
           <h3>房间存档</h3>
+          <UploadStatus actions={actions} kind="restore" />
           <div className="button-row">
             <button
               disabled={busy || !connected}

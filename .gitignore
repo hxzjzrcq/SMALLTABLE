@@ -3,3 +3,10 @@ dist/
 data/
 .env
 *.log
+
+# Local configuration and private launchers
+.env.*
+!.env.example
+START-SMALLTABLE-PRIVATE*.cmd
+*.local.cmd
+*.bak

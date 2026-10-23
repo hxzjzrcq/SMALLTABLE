@@ -3,6 +3,10 @@ type Role = 'player' | 'dm';
 type Principal = { dm: boolean };
 export const WS_PERMISSIONS = {
   activity: 'player',
+  'public.take': 'player',
+  'token.label': 'player',
+  'token.hidden': 'dm',
+  'player.kick': 'dm',
   unlock: 'player',
   lock: 'player',
   move: 'player',
@@ -17,8 +21,8 @@ export const WS_PERMISSIONS = {
   'drawing.clear': 'dm',
   create: 'dm',
   edit: 'dm',
-  delete: 'dm',
-  'delete.many': 'dm',
+  delete: 'player',
+  'delete.many': 'player',
   clear: 'dm',
   'map.select': 'dm',
   'map.delete': 'dm',
@@ -33,6 +37,9 @@ export const WS_PERMISSIONS = {
 export const HTTP_PERMISSIONS = {
   'GET /api/config': 'public',
   'POST /api/login': 'public',
+  'POST /api/logout': 'public',
+  'GET /api/session': 'session',
+  'POST /api/session': 'session',
   'GET /media/:id': 'session',
   'GET /audio/:id': 'session',
   'POST /api/music': 'dm',

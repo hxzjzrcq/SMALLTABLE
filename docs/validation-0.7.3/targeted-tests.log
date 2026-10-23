@@ -1,0 +1,18 @@
+✔ birth center follows scale/pan and stays in both viewport and world; wholly outside view has no birth point (2.191872ms)
+✔ 073 placement spreads consecutive tokens and stays visible at zoomed world edges (1.501902ms)
+✔ batch deletion schema bounds, empty, malformed and duplicate IDs (8.203355ms)
+✔ batch deletion commits once; shared assets, player privacy, stale epoch, missing IDs and late movement (463.275847ms)
+{"time":"2026-10-23T17:08:03.546Z","level":"error","event":"storage.save_failed"}
+✔ batch save failure keeps room, persisted bytes and asset reference intact (268.708069ms)
+{"time":"2026-10-23T17:08:03.085Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-23T17:08:03.106Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+✔ 072 public take race, restricted editing, return/reset, cloning, pool boundary and persistence/restore (985.797441ms)
+✔ 073 player batch return skips stale IDs, synchronizes peers and rejects existing ordinary tokens atomically (159.096373ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1752.474243

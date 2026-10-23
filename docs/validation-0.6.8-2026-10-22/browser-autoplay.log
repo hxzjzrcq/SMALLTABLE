@@ -1,0 +1,57 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: SMALLTABLE 共享桌面
+已连接
+普通玩家 1 / 15 · DM 1 / 1
+已保存
+先攻盘
+属性工具
+角色卡管理
+离开房间
+选择 / 移动
+丈量（格）
+直线画笔
+查看全部
+棋子 0 / 255
+房间音乐
+全桌：停止 · 音乐.mp3
+本地：停止
+拒绝本次音乐
+本地音量
+本地静音
+＋
+−
+拖动棋子 · 拖空白平移 · 点击线条可删除滚轮 / 双指缩放 · 100%
+骰盘
+棋子
+笔记
+DM 工具
+公共骰盘
+最近 0 / 255 条
+显示名称
+天意爷
+投掷
+d4
+d6
+d8
+d10
+d12
+d20
+d100
+
+还没有投骰记录
+
+格是标尺，规则由人解释。
+普通桌面权限 · 不提供撤销
+    at <anonymous> (/workspace/scratch/67347c4b7c57/work/SMALLTABLE-0.6.7/test/browser-autoplay-065.ts:65:10) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

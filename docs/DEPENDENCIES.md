@@ -14,9 +14,9 @@
 | `adm-zip`            | 含图片的房间 ZIP 备份与恢复                                        |
 | `@dndroll/core`      | `file:packages/dndroll-core` 本地依赖，不从外部注册表取得规则源码  |
 
-开发依赖分工：`typescript` / `tsx` 用于类型检查、Core 编译及 TypeScript 执行；`vite` / `@vitejs/plugin-react` 用于前端开发和打包，`vite` 同时生成 Core 的独立浏览器产物；`concurrently` 同时运行开发服务；`jsdom` 提供测试 DOM；`prettier` 负责格式；`@types/*` 提供类型声明。
+`tsx` 是服务端启动和离线密码重置所需的运行依赖。开发依赖分工：`typescript` 用于类型检查和 Core 编译；`vite` / `@vitejs/plugin-react` 用于前端开发和打包，`vite` 同时生成 Core 的独立浏览器产物；`concurrently` 同时运行开发服务；`jsdom` 提供测试 DOM；`prettier` 负责格式；`@types/*` 提供类型声明。
 
-当前 `npm start` 通过 `tsx` 直接运行服务端 TypeScript，尚无独立服务端 JavaScript 构建。因此生产安装也必须保留开发依赖，不能使用 `npm ci --omit=dev`。如以后改为编译后启动，应同时更新脚本与此约定。
+当前 `npm start` 通过运行依赖 `tsx` 直接运行服务端 TypeScript，尚无独立服务端 JavaScript 构建。先用完整依赖执行 `npm run build`；已有对应构建产物时，可执行 `npm ci --omit=dev` 后 `npm start`。只安装生产依赖的目录不能执行构建或测试命令。
 
 新增依赖前确认现有代码和运行时是否已经覆盖需求；确需引入时说明用途并同步锁文件。依赖更新按影响范围验证：图片/ZIP 涉及上传、恢复和体积限制；网络或校验库涉及协议、权限与连接；前端构建库涉及构建和界面。不复制目标机器以外的 `node_modules` 作为部署依赖。
 
@@ -32,7 +32,7 @@ npm start
 
 `build` 先通过 `build:core` 编译 Core 并生成独立浏览器脚本及 source map，再做 TypeScript 检查和既有 Vite 前端构建。`start` 只启动服务，不自动构建。`dist/` 是前端产物，不能单独当作完整站点部署；服务端源码、本地 Core 包、配置和依赖同样需要保留。交付包虽含产物，修改源码后仍需重新构建。
 
-开发使用 `npm run dev`，默认访问 `http://127.0.0.1:5173`，由 Vite 代理 API、素材和 WebSocket。生产默认访问 `http://127.0.0.1:3000`，由一个 Node 进程提供全部服务。
+开发使用 `npm run dev`，默认访问 `http://127.0.0.1:5173`，由 Vite 代理 `/api`、`/media`、`/audio` 和 `/ws`，显式保留 Host 以通过服务端同源检查。生产默认访问 `http://127.0.0.1:3000`，由一个 Node 进程提供全部服务。
 
 ## Core 独立浏览器产物
 
@@ -66,6 +66,7 @@ SMALLTABLE 的属性工具仍走原有 Vite 入口和同源 iframe，页面不�
 - 当前架构是一套部署、一张桌面、一个 Node 进程。不支持多个实例共享同一数据目录或仅靠负载均衡扩容；会话、房间状态和变更队列都在单进程内存中。
 - 托管环境必须支持长驻 Node 进程、WebSocket 和持久化文件系统。仅静态托管或每次请求临时启动的函数环境不能直接承载当前完整服务。
 - 反向代理需转发 HTTP 与 `/ws` 的 WebSocket Upgrade，保留浏览器访问的 Host，使服务端同源检查正常。站点按根路径提供；子路径部署尚无适配。
+- 远程玩家直接连接 Node 时设置 `HOST=0.0.0.0` 或实际网卡地址；同机反代可保持默认 `127.0.0.1`。应用自身不提供 TLS。
 - 公网 HTTPS 可在代理终止 TLS；浏览器使用同源 HTTPS/WSS。设置 `COOKIE_SECURE=true`，确认代理允许持续的 WebSocket 连接。
 - 当前限流取实际连接的远端地址，不信任转发头。经过代理后多个玩家可能共用同一限流桶；部署验收需检查多人进入及 DM 解锁，不能仅添加转发头就假定可按玩家区分。
 - 进程重启后内存会话和 DM 授权失效，客户端需重新连接或进入；房间数据从持久化目录恢复。停止时应给进程处理 SIGTERM/SIGINT 和保存的时间。
@@ -77,6 +78,10 @@ SMALLTABLE 的属性工具仍走原有 Vite 入口和同源 iframe，页面不�
 
 ## 0.6.5 浏览器验证
 
-新增 `playwright` 仅为开发依赖；运行时仍无音频处理依赖，生产不使用 FFmpeg。浏览器测试默认使用 Playwright 的 Chromium，也可通过 `SMALLTABLE_CHROMIUM` 指定已安装的 Chromium 可执行文件。本次环境使用临时 Chromium 153 二进制进行验证，不将该二进制或临时解包工具加入源码包。
+新增 `playwright` 仅为开发依赖；运行时仍无音频处理依赖，生产不使用 FFmpeg。浏览器测试默认使用 Playwright 的 Chromium，也可通过 `SMALLTABLE_CHROMIUM` 指定已安装的 Chromium 可执行文件。0.6.5 历史环境使用临时 Chromium 153；本版环境与结果见 VALIDATION.md，不将该二进制或临时解包工具加入源码包。
 
 测试样本为本地生成的纯音 MP3，来源与重新生成命令见 `test/fixtures/README.md`。重新运行已有样本不需要 FFmpeg；只有重建样本时使用。
+
+## 固定 Windows 启动与增量覆盖
+
+项目根 START-SMALLTABLE.cmd 是通用公开入口，无个人域名、密码或令牌；cd /d "%~dp0" 固定工作目录，通过 npm start 启动，由服务端按实际配置检查监听端口和数据目录互斥。穿透/反代独立配置。0.7.0 无依赖变化；已构建补丁、覆盖和回退说明见 [升级说明](UPGRADE-0.7.0.md)。

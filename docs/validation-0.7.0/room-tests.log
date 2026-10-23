@@ -1,0 +1,397 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> smalltable@0.7.0 test
+> node --import tsx --test test/*.test.ts
+
+{"time":"2026-10-22T14:46:15.837Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:15.838Z","level":"error","event":"backup.create_failed"}
+{"time":"2026-10-22T14:46:15.839Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:15.839Z","level":"error","event":"backup.restore_failed"}
+{"time":"2026-10-22T14:46:15.840Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:15.840Z","level":"error","event":"image.process_failed"}
+{"time":"2026-10-22T14:46:15.841Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:15.841Z","level":"error","event":"music.failed"}
+{"time":"2026-10-22T14:46:15.842Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:15.844Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:15.845Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:15.847Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:15.849Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:15.851Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:15.851Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:15.852Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:15.852Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:15.853Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:15.854Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:15.854Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+✔ queued HTTP and WS management is rejected after lock revocation (966.807237ms)
+{"time":"2026-10-22T14:46:16.512Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:16.512Z","level":"error","event":"backup.create_failed"}
+{"time":"2026-10-22T14:46:16.513Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:16.513Z","level":"error","event":"backup.restore_failed"}
+{"time":"2026-10-22T14:46:16.514Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:16.514Z","level":"error","event":"image.process_failed"}
+{"time":"2026-10-22T14:46:16.514Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:16.514Z","level":"error","event":"music.failed"}
+{"time":"2026-10-22T14:46:16.514Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:16.515Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+✔ queued HTTP and WS management is rejected after disconnect revocation (639.335855ms)
+{"time":"2026-10-22T14:46:17.339Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:17.339Z","level":"error","event":"backup.create_failed"}
+{"time":"2026-10-22T14:46:17.339Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:17.339Z","level":"error","event":"backup.restore_failed"}
+{"time":"2026-10-22T14:46:17.340Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:17.340Z","level":"error","event":"image.process_failed"}
+{"time":"2026-10-22T14:46:17.340Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:17.340Z","level":"error","event":"music.failed"}
+{"time":"2026-10-22T14:46:17.340Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:17.340Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:17.341Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:17.342Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:17.342Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:17.343Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:17.343Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:17.343Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:17.344Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:17.344Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:17.345Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:17.346Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:17.362Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+✔ queued HTTP and WS management is rejected after password revocation (841.730576ms)
+✔ pointer line preview stays local, release submits once, cancel/pinch do not draw; line selection deletes (458.306484ms)
+✔ touch zoom buttons preserve the center anchor and clamp scaling (2.493482ms)
+✔ two-finger gesture preserves its world anchor while midpoint pans (0.278232ms)
+✔ effective limits appear in panels; local notes use configured UTF-8 bytes (579.406ms)
+{"time":"2026-10-22T14:46:15.006Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.008Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.016Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.021Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.036Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.038Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.041Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.048Z","level":"error","event":"config.load_failed"}
+✔ JSON partial overrides, defaults, >15 seats, invalid fields and obsolete URL (79.123957ms)
+✔ independent non-default schema limits, byte limits, and values above 255 (59.573769ms)
+{"time":"2026-10-22T14:46:15.118Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.118Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.118Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.119Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.119Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.119Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.119Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.119Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.120Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.122Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.123Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.125Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.126Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.127Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.128Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.129Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.130Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.130Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.132Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:15.135Z","level":"error","event":"config.load_failed"}
+✔ legacy environment settings require explicit migration; invalid nested limits and derived overflow fail at startup (23.503596ms)
+✔ UI controller removes private state on disconnect 4001 (12.753091ms)
+✔ UI controller removes private state on disconnect 4003 (3.080287ms)
+✔ dice preserves raw values, signs and canonical form (3.471011ms)
+✔ dice rejects excessive work, unsafe values and public text (0.893575ms)
+✔ units remain rule-neutral and text limits count UTF-8 (0.421757ms)
+✔ vendored Core source is byte-identical to the supplied DNDROLL 0.4 source (14.188261ms)
+✔ built tool entry and CSP allow same-origin embedding without modifying room state (6331.178609ms)
+✔ embedded UI completes a Core-backed session; modal preserves frame and filters activity messages (601.415195ms)
+✔ initiative panel sorts ties, toggles order, edits/deletes and hides without changing room (310.210139ms)
+{"time":"2026-10-22T14:46:17.232Z","level":"error","event":"image.process_failed"}
+{"time":"2026-10-22T14:46:17.264Z","level":"warn","event":"websocket.rejected","reason":"invalid_command"}
+{"time":"2026-10-22T14:46:17.276Z","level":"warn","event":"websocket.rejected","reason":"invalid_command"}
+{"time":"2026-10-22T14:46:17.287Z","level":"warn","event":"websocket.rejected","reason":"invalid_command"}
+{"time":"2026-10-22T14:46:17.298Z","level":"warn","event":"websocket.rejected","reason":"invalid_command"}
+{"time":"2026-10-22T14:46:17.308Z","level":"warn","event":"websocket.rejected","reason":"invalid_command"}
+{"time":"2026-10-22T14:46:18.022Z","level":"error","event":"image.process_failed"}
+✔ multi-map defaults, custom count, independent scale and unchanged table; duplicates count entries only (1905.273357ms)
+{"time":"2026-10-22T14:46:18.386Z","level":"warn","event":"websocket.rejected","reason":"invalid_command"}
+{"time":"2026-10-22T14:46:18.396Z","level":"warn","event":"websocket.rejected","reason":"invalid_command"}
+{"time":"2026-10-22T14:46:18.411Z","level":"warn","event":"websocket.rejected","reason":"invalid_command"}
+{"time":"2026-10-22T14:46:18.461Z","level":"error","event":"backup.restore_failed"}
+✔ world bounds apply to commands/load/restore, leave initiative and dice numerical domains intact (435.391116ms)
+{"time":"2026-10-22T14:46:19.048Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:19.057Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:19.067Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:19.079Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:19.089Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:19.099Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:19.109Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:19.123Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+✔ flip table persists once, preserves named data and music, rejects late movement/drawing and player controls (741.411133ms)
+✔ resource leases cancel/expire, survive shared references and release last ref; restart discards leases (719.643728ms)
+{"time":"2026-10-22T14:46:20.161Z","level":"error","event":"image.process_failed"}
+{"time":"2026-10-22T14:46:20.166Z","level":"error","event":"resource.cleanup_failed","code":"EISDIR"}
+{"time":"2026-10-22T14:46:21.060Z","level":"error","event":"image.process_failed"}
+✔ exact single/total byte quotas and serialized concurrent uploads; failed cleanup continues counting (1139.399263ms)
+{"time":"2026-10-22T14:46:21.507Z","level":"error","event":"storage.save_failed","code":"EISDIR"}
+{"time":"2026-10-22T14:46:21.516Z","level":"error","event":"image.process_failed"}
+{"time":"2026-10-22T14:46:21.531Z","level":"error","event":"storage.save_failed","code":"EISDIR"}
+{"time":"2026-10-22T14:46:21.564Z","level":"error","event":"music.failed","code":"EISDIR"}
+✔ map and music save failures preserve authoritative state and clean rejected files (513.957218ms)
+{"time":"2026-10-22T14:46:22.342Z","level":"error","event":"backup.restore_failed"}
+{"time":"2026-10-22T14:46:22.551Z","level":"error","event":"backup.restore_failed"}
+{"time":"2026-10-22T14:46:22.755Z","level":"error","event":"backup.restore_failed"}
+✔ portable backup covers noncurrent maps; restore excludes music, preserves playback and validates candidate quota (1204.103617ms)
+{"time":"2026-10-22T14:46:23.201Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:23.201Z","level":"error","event":"music.failed"}
+{"time":"2026-10-22T14:46:23.205Z","level":"error","event":"music.failed"}
+✔ MP3 bytes are validated, authorized ranges work; pushes pause/stop/switch/natural end/deletion (8605.539922ms)
+{"time":"2026-10-22T14:46:31.532Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:31.533Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:31.534Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:31.535Z","level":"error","event":"config.load_failed"}
+{"time":"2026-10-22T14:46:31.535Z","level":"error","event":"config.load_failed"}
+✔ new positive integer config/overflow validation and startup lower limits reject data (319.611747ms)
+{"time":"2026-10-22T14:46:32.222Z","level":"error","event":"image.process_failed"}
+{"time":"2026-10-22T14:46:32.223Z","level":"error","event":"image.process_failed"}
+{"time":"2026-10-22T14:46:32.535Z","level":"error","event":"image.process_failed"}
+{"time":"2026-10-22T14:46:32.773Z","level":"error","event":"music.failed"}
+{"time":"2026-10-22T14:46:33.453Z","level":"error","event":"image.process_failed"}
+✔ valid exact 256 KiB token, 10 MiB map and 4 MiB MP3 accepted; one extra byte rejected; final transcode limit enforced (1741.74068ms)
+{"time":"2026-10-22T14:46:33.892Z","level":"error","event":"music.failed"}
+{"time":"2026-10-22T14:46:33.941Z","level":"error","event":"storage.save_failed","code":"EISDIR"}
+{"time":"2026-10-22T14:46:33.943Z","level":"error","event":"backup.restore_failed","code":"EISDIR"}
+✔ custom music count enforced and restoring replacement images does not double-count retired room assets (487.989361ms)
+✔ map and token can share content; token replacement and final map deletion release only unused hashes (338.615674ms)
+✔ local selection replaces, toggles and retains on Shift empty click (5.830786ms)
+✔ batch deletion schema bounds, empty, malformed and duplicate IDs (8.478735ms)
+{"time":"2026-10-22T14:46:17.899Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+✔ batch deletion commits once; shared assets, player privacy, stale epoch, missing IDs and late movement (840.262746ms)
+{"time":"2026-10-22T14:46:18.452Z","level":"error","event":"storage.save_failed"}
+✔ batch save failure keeps room, persisted bytes and asset reference intact (487.755268ms)
+✔ kernel lock rejects same directory and path aliases, allows independent data and releases after SIGKILL (309.715681ms)
+✔ simultaneous processes have exactly one lock owner (434.040568ms)
+✔ real server restart after SIGKILL preserves credentials and does not require removing a lock (1884.413715ms)
+✔ occupied HTTP port reports original EADDRINUSE and cleans the data lock before exit (2136.615021ms)
+✔ failed credential initialization releases the endpoint; legacy 055 PID locks are conservative (967.621634ms)
+{"time":"2026-10-22T14:46:18.891Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:19.192Z","level":"error","event":"image.process_failed"}
+✔ real API/socket limits and image edits avoid re-encoding; invalid resource replacement rejected (1273.954829ms)
+{"time":"2026-10-22T14:46:21.453Z","level":"warn","event":"auth.login_failed"}
+✔ configured >15 connections are admitted and the next seat is rejected (1931.348754ms)
+✔ all collections exceed old defaults through live commands, disk and restore; long names command exceeds old 64 KiB wire limit (795.13855ms)
+✔ failed logins, DM authorization and their rate limits generate safe warning events (295.098113ms)
+✔ normal updates stay quiet; save/restore/image/real WebSocket errors are observable without private data (464.013846ms)
+✔ real executable logs startup, graceful shutdown and configuration startup failure safely (1692.005165ms)
+✔ fatal handler records process.uncaught_exception and exits without printing the exception text (283.009001ms)
+✔ fatal handler records process.unhandled_rejection and exits without printing the exception text (366.146154ms)
+✔ logs have fixed fields and levels, allow operational codes, and never serialize sensitive details (4.871046ms)
+✔ a failed output sink cannot throw into a business operation (0.548788ms)
+✔ configuration and disk read failures are logged without raw input; a new room is not an error (33.340735ms)
+✔ login uses actual states, accepts keyboard form submission, clears password and preserves local notes (349.154407ms)
+✔ animation respects reduced motion/hidden pages and supports cleanup then remount (157.059621ms)
+✔ App transitions from actual client handshake to tabletop and back without retaining animation (203.620953ms)
+{"time":"2026-10-22T14:46:22.199Z","level":"warn","event":"auth.login_failed"}
+✔ 15 connections, 255 tokens, concurrent movement converges; log cap and restart persist (3268.663239ms)
+✔ movement publishes intermediate positions across throttle windows and accepts final placement within the window (710.071878ms)
+✔ notes byte limit preserves previous saved content, including multibyte input (1.53548ms)
+✔ notes storage errors propagate so the interface can report failure (0.409091ms)
+✔ rebranding preserves legacy local notes and explicit empty new notes stay empty (0.174973ms)
+✔ password form requires confirmation, supports separate fields and clears secrets after failures (482.803848ms)
+✔ password policy: categories, Unicode length, controls and exact case-insensitive blocklist (6.441451ms)
+✔ initialization fails closed; independent salted credentials persist; reset is offline and preserves room data (2218.990299ms)
+{"time":"2026-10-22T14:46:25.214Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:25.365Z","level":"warn","event":"auth.dm_failed","scope":"password_change"}
+{"time":"2026-10-22T14:46:25.452Z","level":"warn","event":"auth.dm_failed","scope":"password_change"}
+{"time":"2026-10-22T14:46:25.576Z","level":"warn","event":"auth.dm_failed","scope":"password_change"}
+{"time":"2026-10-22T14:46:25.596Z","level":"warn","event":"rate_limit.triggered","scope":"password_change"}
+✔ HTTP authorization, fresh DM verification, strict request shape, validation and rate limit (882.638624ms)
+{"time":"2026-10-22T14:46:26.449Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:26.449Z","level":"error","event":"backup.create_failed"}
+{"time":"2026-10-22T14:46:26.522Z","level":"warn","event":"auth.dm_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:27.353Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:27.353Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:27.498Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:27.498Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:27.837Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:27.837Z","level":"warn","event":"auth.login_failed"}
+✔ DM rotation revokes all DM privileges; room rotation disconnects all and invalidates pending tokens; reboot and backup restore preserve new secrets (2153.046331ms)
+{"time":"2026-10-22T14:46:28.457Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:28.718Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:28.719Z","level":"warn","event":"auth.login_failed"}
+✔ simultaneous password updates cannot reuse a revoked session or partially mix credentials (876.338582ms)
+{"time":"2026-10-22T14:46:29.361Z","level":"warn","event":"auth.login_failed"}
+✔ login verified with an old credential cannot create a session after room rotation (703.358019ms)
+{"time":"2026-10-22T14:46:23.170Z","level":"warn","event":"websocket.rejected","reason":"invalid_command"}
+{"time":"2026-10-22T14:46:23.186Z","level":"warn","event":"websocket.rejected","reason":"invalid_command"}
+{"time":"2026-10-22T14:46:23.194Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+✔ public notes synchronize, persist and preserve DM-only fields (917.343305ms)
+✔ public note contract accepts only its field and validates bytes and epoch (14.527577ms)
+✔ render budget: 25 position events do not execute unrelated memoized panels (848.182642ms)
+✔ roll input preserves existing whitespace syntax and splits the longest valid expression (5.812233ms)
+✔ wire reason rejects forged fields; old records and schema 3 remain valid (13.984386ms)
+{"time":"2026-10-22T14:46:24.377Z","level":"warn","event":"websocket.rejected","reason":"invalid_command"}
+{"time":"2026-10-22T14:46:24.388Z","level":"warn","event":"websocket.rejected","reason":"invalid_command"}
+✔ real peers synchronize reasons, reject invalid input without mutation, persist, restart and restore old backup (705.126476ms)
+{"time":"2026-10-22T14:46:24.768Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:24.769Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:25.035Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:25.231Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:25.231Z","level":"error","event":"backup.create_failed"}
+{"time":"2026-10-22T14:46:25.296Z","level":"error","event":"backup.restore_failed"}
+✔ real sockets: password, role isolation, movement, rotation, dice log and backup restore (1026.762035ms)
+✔ static entry serves its real JS/CSS and images require room authorization (194.304446ms)
+✔ idle clients are disconnected even when WebSocket pong heartbeats are alive (10199.008816ms)
+{"time":"2026-10-22T14:46:35.955Z","level":"error","event":"storage.save_failed"}
+✔ save failure reports unsaved state and a later successful write recovers (263.333722ms)
+✔ every schema command has one explicit rule; unknown commands are denied even to DM (2.236921ms)
+✔ HTTP permission inventory preserves public/session/DM routes (0.268646ms)
+✔ ordinary config does not read, carry or expose initialization credentials (7.057512ms)
+{"time":"2026-10-22T14:46:24.991Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:24.997Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:25.010Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:25.020Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:25.030Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:25.042Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:25.054Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:25.084Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:25.084Z","level":"error","event":"backup.create_failed"}
+{"time":"2026-10-22T14:46:25.096Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:25.096Z","level":"error","event":"backup.restore_failed"}
+{"time":"2026-10-22T14:46:25.102Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:25.103Z","level":"error","event":"image.process_failed"}
+{"time":"2026-10-22T14:46:25.107Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:25.107Z","level":"error","event":"image.process_failed"}
+{"time":"2026-10-22T14:46:25.313Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:25.313Z","level":"error","event":"backup.create_failed"}
+{"time":"2026-10-22T14:46:25.328Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:25.328Z","level":"error","event":"backup.restore_failed"}
+{"time":"2026-10-22T14:46:25.332Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:25.332Z","level":"error","event":"image.process_failed"}
+{"time":"2026-10-22T14:46:25.335Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:25.335Z","level":"error","event":"image.process_failed"}
+{"time":"2026-10-22T14:46:25.336Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:25.349Z","level":"warn","event":"websocket.rejected","reason":"invalid_command"}
+{"time":"2026-10-22T14:46:25.361Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:25.361Z","level":"error","event":"backup.create_failed"}
+✔ HTTP/WS authorization, lock/disconnect and serialized outputs preserve security boundaries (800.858287ms)
+✔ temporary IDs use Unicode code points and reject unsupported characters without rewriting (2.802411ms)
+{"time":"2026-10-22T14:46:25.500Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:25.506Z","level":"warn","event":"auth.login_failed"}
+✔ five player seats and an independent DM seat; failed upgrade keeps player and lock at capacity logs out (301.441355ms)
+{"time":"2026-10-22T14:46:25.587Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:25.657Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:25.657Z","level":"warn","event":"auth.login_failed"}
+✔ offline sessions release seats and IDs; reservations expire at 15 seconds, preserving authentication (121.766553ms)
+✔ simulated 20/30 minute restore: refresh, broadcasts, ping and HTTP do not extend expiration; activity and cookies do (132.892613ms)
+{"time":"2026-10-22T14:46:25.841Z","level":"warn","event":"websocket.rejected","reason":"denied"}
+✔ online and offline expiration is enforced before WS handshake and without maintenance (35.02745ms)
+✔ connection takeover replaces only old connection, allows full-room refresh, and invalidates old management target (109.801988ms)
+✔ queued commands from replaced and kicked sockets cannot mutate the room (77.064973ms)
+✔ logout is idempotent without a socket, checks origin, clears cookie and revokes offline authentication (44.383989ms)
+{"time":"2026-10-22T14:46:26.204Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T14:46:26.205Z","level":"error","event":"backup.create_failed"}
+✔ DM rotation respects authentication source, online order, offline role and unchanged activity expiration (143.976406ms)
+✔ demotion order is connection order and player capacity is never exceeded (111.824249ms)
+{"time":"2026-10-22T14:46:26.396Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:26.396Z","level":"warn","event":"auth.login_failed"}
+✔ room password rotation invalidates every source, online and offline, including modifier (61.417417ms)
+{"time":"2026-10-22T14:46:26.434Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.436Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.443Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.446Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.450Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.453Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.456Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.459Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:26.459Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.462Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:26.462Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.465Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:26.465Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.468Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:26.468Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.471Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:26.471Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.474Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:26.475Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.481Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:26.481Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.484Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:26.484Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.487Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:26.487Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.490Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:26.490Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.493Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:26.493Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.496Z","level":"warn","event":"rate_limit.triggered","scope":"login"}
+✔ concurrent names and seats reserve atomically, DM login uses login attempt limiter (94.338745ms)
+{"time":"2026-10-22T14:46:26.549Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+✔ offline direct-DM source is revoked by DM rotation, and a stale role target cannot be kicked (90.062676ms)
+{"time":"2026-10-22T14:46:26.625Z","level":"warn","event":"auth.login_failed"}
+✔ DM password rotation rejects an already verified direct-DM login result (48.197828ms)
+✔ a player disconnected during asynchronous DM validation cannot gain authority (62.99748ms)
+✔ failed WS protocol handshake releases its reservation immediately without revoking authentication (32.420641ms)
+✔ expired connections are excluded from broadcasts before periodic maintenance (63.048524ms)
+{"time":"2026-10-22T14:46:26.816Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:26.816Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.824Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:26.824Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.826Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:26.826Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.829Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:26.829Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.832Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:26.832Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.834Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:26.834Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T14:46:26.845Z","level":"warn","event":"auth.dm_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:26.855Z","level":"warn","event":"auth.dm_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:26.864Z","level":"warn","event":"auth.dm_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:26.875Z","level":"warn","event":"auth.dm_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T14:46:26.886Z","level":"warn","event":"rate_limit.triggered","scope":"dm"}
+✔ login errors, toolbox attempts and password changes have independent IP budgets (105.593958ms)
+✔ initialization restores by Cookie only and terminal WS closes never schedule a reconnect (19.362365ms)
+✔ offline logout stores no credential and next initialization performs logout before any restoration (12.479066ms)
+✔ logout waits for an in-flight login response so late Set-Cookie cannot restore a signed-out session (3.11465ms)
+✔ temporary disconnect retains public desktop; full seats retain it; terminal causes remove it (12.733073ms)
+✔ HTTP recovery failures retain desktop for full/network only, and three retries stop visibly (11.482263ms)
+✔ recovery phases never expose a login form before session resolution; snapshots end recovery (4.338916ms)
+✔ socket/snapshot timeout participates in the three-retry budget until an actual snapshot arrives (4.808744ms)
+✔ shortcut guards, cancellation consumption and listener cleanup (219.848782ms)
+{"time":"2026-10-22T14:46:26.725Z","level":"error","event":"image.process_failed"}
+{"time":"2026-10-22T14:46:26.725Z","level":"error","event":"image.process_failed"}
+✔ image validation, deduplication and portable backup on a fresh instance (865.016776ms)
+{"time":"2026-10-22T14:46:27.595Z","level":"error","event":"backup.restore_failed"}
+✔ restore rejects a ZIP whose declared size is forged to zero (502.875608ms)
+{"time":"2026-10-22T14:46:26.820Z","level":"error","event":"storage.load_failed"}
+✔ restore and disk load apply deployment limits; backup budgets grow with limits (97.041669ms)
+✔ backup restores more than 257 entries when token configuration permits it (6921.243002ms)
+{"time":"2026-10-22T14:46:33.775Z","level":"error","event":"image.process_failed"}
+{"time":"2026-10-22T14:46:33.776Z","level":"error","event":"image.process_failed","code":"ENOENT"}
+{"time":"2026-10-22T14:46:33.778Z","level":"error","event":"image.process_failed"}
+{"time":"2026-10-22T14:46:33.779Z","level":"error","event":"image.process_failed"}
+{"time":"2026-10-22T14:46:33.789Z","level":"error","event":"image.process_failed"}
+{"time":"2026-10-22T14:46:33.792Z","level":"error","event":"image.process_failed"}
+{"time":"2026-10-22T14:46:33.797Z","level":"error","event":"image.process_failed"}
+{"time":"2026-10-22T14:46:33.797Z","level":"error","event":"storage.load_failed"}
+{"time":"2026-10-22T14:46:33.799Z","level":"error","event":"storage.load_failed"}
+✔ resource references reject missing, invalid, animated, byte and dimension violations without conversion; disk budgets and current image limits apply (33.42137ms)
+{"time":"2026-10-22T14:46:33.956Z","level":"error","event":"storage.load_failed"}
+✔ room initialization failure releases credential ownership and permits subsequent startup (170.444875ms)
+✔ stable numeric sorting and strict legacy schema rejection (16.412846ms)
+{"time":"2026-10-22T14:46:28.452Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+{"time":"2026-10-22T14:46:28.487Z","level":"warn","event":"websocket.rejected","reason":"invalid_command"}
+{"time":"2026-10-22T14:46:28.497Z","level":"warn","event":"websocket.rejected","reason":"invalid_command"}
+✔ players share initiative CRUD/order and lines; only DM clears; stale or invalid commands do not mutate (862.009557ms)
+{"time":"2026-10-22T14:46:29.241Z","level":"error","event":"backup.restore_failed"}
+{"time":"2026-10-22T14:46:29.245Z","level":"error","event":"storage.load_failed"}
+✔ new room data survives backup/restore and disk load; v1 backups and disk files are rejected (624.472864ms)
+✔ 255 item budgets reject additions without blocking edits or deletions (561.317819ms)
+✔ selection-only rotation and player public-note-only controls (26.117628ms)
+✔ transparent image hit rectangle supports selecting, dragging and rotation; plain token shape remains (547.904316ms)
+✔ live room updates preserve drafts and scroll, refresh visible data, and remove private controls on revocation (1129.695846ms)
+ℹ tests 119
+ℹ suites 0
+ℹ pass 119
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 22086.408588

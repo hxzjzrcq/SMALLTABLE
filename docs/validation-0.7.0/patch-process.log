@@ -1,0 +1,8 @@
+{"time":"2026-10-22T14:47:37.481Z","level":"info","event":"process.starting"}
+{"time":"2026-10-22T14:47:38.158Z","level":"info","event":"process.started","message":"SMALLTABLE: service ready","port":3000}
+{"time":"2026-10-22T14:47:38.933Z","level":"info","event":"process.stopping","signal":"SIGTERM"}
+{"time":"2026-10-22T14:47:38.935Z","level":"info","event":"process.stopped"}
+{"time":"2026-10-22T14:47:39.111Z","level":"info","event":"process.starting"}
+{"time":"2026-10-22T14:47:39.563Z","level":"info","event":"process.started","message":"SMALLTABLE: service ready","port":3000}
+{"time":"2026-10-22T14:47:39.890Z","level":"info","event":"process.stopping","signal":"SIGTERM"}
+{"time":"2026-10-22T14:47:39.891Z","level":"info","event":"process.stopped"}

@@ -1,0 +1,11 @@
+PASS: clean npm ci/build, npm ci --omit=dev, no Vite, npm start, homepage/config/login and HttpOnly cookie-only response
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> smalltable@0.7.2 start
+> node --import tsx src/server/index.ts
+
+{"time":"2026-10-23T16:27:52.048Z","level":"info","event":"process.starting"}
+{"time":"2026-10-23T16:27:52.389Z","level":"info","event":"process.started","message":"SMALLTABLE: service ready","port":40857}
+{"time":"2026-10-23T16:27:52.554Z","level":"info","event":"process.stopping","signal":"SIGINT"}
+{"time":"2026-10-23T16:27:52.555Z","level":"info","event":"process.stopped"}
+

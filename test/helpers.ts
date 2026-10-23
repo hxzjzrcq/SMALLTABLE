@@ -36,3 +36,10 @@ export async function waitEvent<T>(
   }
   throw Error('Timed out waiting for event: ' + JSON.stringify(events.slice(-2)));
 }
+
+/** Raw test peers cannot use a browser cookie jar. Never expose this in product code. */
+export async function sessionBody(response: Response) {
+  const body = await response.json();
+  const token = response.headers.get('set-cookie')?.match(/tt_room=([^;]+)/)?.[1];
+  return { ...body, token };
+}

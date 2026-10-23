@@ -31,6 +31,7 @@ textarea {
 }
 button,
 .button {
+  touch-action: manipulation;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -554,7 +555,7 @@ footer {
 }
 /* SMALLTABLE 0.2: player touch controls; DM authoring remains desktop-oriented. */
 .mobile-panel-toggle {
-  display: none;
+  display: inline-flex;
 }
 .panel-collapsed aside {
   display: none;
@@ -898,4 +899,91 @@ footer {
 }
 .token-list-row > button:last-child:not(:first-child) {
   flex-shrink: 0;
+}
+
+.roll-reason {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  margin: 4px 0;
+}
+
+/* 0.7.2: compact, touch-accessible token management. */
+.public-letters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(56px, 1fr));
+  gap: 6px;
+}
+.public-letters button {
+  min-height: 40px;
+  font-weight: bold;
+}
+.token-list-row {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.token-list-row > button {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.token-row-actions {
+  max-width: 100%;
+}
+.token-row-actions[open] {
+  flex: 1 0 100%;
+}
+.token-row-actions summary {
+  cursor: pointer;
+  padding: 8px;
+}
+.token-row-actions button {
+  min-height: 36px;
+  margin: 2px;
+}
+.upload-status progress {
+  display: block;
+  width: 100%;
+}
+.diagnostics {
+  min-width: 0;
+  max-width: 100%;
+}
+.diagnostics textarea {
+  display: block;
+  width: min(420px, 100%);
+  min-height: 130px;
+}
+.message {
+  flex-wrap: wrap;
+}
+.music-panel {
+  max-height: 30dvh;
+  overflow-y: auto;
+}
+@media (max-width: 760px) {
+  button,
+  summary {
+    min-height: 36px;
+  }
+  .music-panel {
+    max-height: 22dvh;
+  }
+  .status {
+    overflow-wrap: anywhere;
+  }
+}
+@media (max-height: 500px) and (max-width: 1000px) {
+  header {
+    padding: 3px 8px;
+  }
+  .music-panel {
+    max-height: 18dvh;
+  }
+  aside {
+    height: 36dvh;
+    max-height: 42dvh;
+  }
+  .board-help,
+  footer {
+    display: none;
+  }
 }

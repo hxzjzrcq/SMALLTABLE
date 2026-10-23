@@ -1,3 +1,4 @@
+import { act } from 'react';
 import { JSDOM, type ConstructorOptions } from 'jsdom';
 
 export function createDom(html = '<div id="root"></div>', options: ConstructorOptions = {}) {
@@ -29,5 +30,17 @@ export function installDomGlobals(dom: JSDOM, extra: Record<string, unknown> = {
     HTMLElement: dom.window.HTMLElement,
     IS_REACT_ACT_ENVIRONMENT: true,
     ...extra,
+  });
+}
+
+export async function inputValue(node: HTMLInputElement | HTMLTextAreaElement, value: string) {
+  const window = node.ownerDocument.defaultView!;
+  const proto =
+    node.tagName === 'TEXTAREA'
+      ? window.HTMLTextAreaElement.prototype
+      : window.HTMLInputElement.prototype;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(proto, 'value')!.set!.call(node, value);
+    node.dispatchEvent(new window.Event('input', { bubbles: true }));
   });
 }

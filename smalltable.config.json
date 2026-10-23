@@ -1,6 +1,7 @@
 {
   "limits": {
     "players": 15,
+    "dms": 1,
     "tokens": 255,
     "privateNotesBytes": 65535,
     "initiativeEntries": 255,
@@ -16,9 +17,6 @@
     "mapEdge": 8192,
     "tokenBytes": 262144,
     "tokenEdge": 256
-  },
-  "session": {
-    "idleMinutes": 30
   },
   "resources": {
     "totalBytes": 67108864,

@@ -1,0 +1,2 @@
+{"time":"2026-10-23T16:18:42.320Z","level":"error","event":"storage.save_failed"}
+PASS: actual directory clones share image and copy all fields; independent notes; Shift local-only/toggle/plain/empty; one confirmation/cancel; one batch deletion and peer snapshot; boundary clone, failed creation, configured cap and external deletion

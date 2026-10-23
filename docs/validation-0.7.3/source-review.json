@@ -1,0 +1,27 @@
+{
+  "baseline_sha256": "e8d86d42cf074c9b9377831f81750d10125ce3bd30d03d693ba68b3f3db5b047",
+  "changed_baseline_files": [
+    "DEVELOPMENT.md",
+    "README.md",
+    "dist/assets/main-BlL5Ng-9.js",
+    "dist/index.html",
+    "docs/SECURITY.md",
+    "docs/TESTING.md",
+    "docs/UI.md",
+    "docs/VALIDATION.md",
+    "package-lock.json",
+    "package.json",
+    "src/client/App.tsx",
+    "src/client/camera.ts",
+    "src/client/components/Board.tsx",
+    "src/client/controller.ts",
+    "src/server/app.ts",
+    "test/browser-release-070.ts",
+    "test/camera.test.ts",
+    "test/iteration-072.test.ts",
+    "帮助.md"
+  ],
+  "core_changed": [],
+  "dependency_changes": false,
+  "generic_cmd_unchanged": true
+}

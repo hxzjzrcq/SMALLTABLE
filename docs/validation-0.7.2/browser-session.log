@@ -1,0 +1,13 @@
+PASS 1: isolated browser contexts show separate player/DM capacity and DM-only management list
+PASS 2: persistent HttpOnly cookie restores refresh and new tab without password or synthetic activity; old tab stops
+PASS 3: closing then reopening a page preserves session and ID
+PASS 4: DM role survives refresh
+PASS 5: kick confirms target ID, returns to login and stops reconnect
+PASS 6: kicked user can reauthenticate
+PASS 7: locking a direct DM with full ordinary seats logs out without offering stale session recovery
+PASS 8: full-room recovery offers manual retry and preserves original authentication
+PASS 9: offline logout stores only a pending flag and completes revocation before online recovery
+PASS 10: invalid temporary ID has a visible error without silent trimming
+PASS 11: 390px login accepts a mixed Chinese ID without truncation and keeps submit within viewport
+PASS 12: tested pages have no uncaught browser errors
+Browser session checks passed: 12

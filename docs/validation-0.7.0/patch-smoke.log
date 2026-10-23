@@ -1,0 +1,3 @@
+PASS: clean 0.6.9 + overlay uses pre-existing dependencies; actual 3000 server, built UI/version, reason and refresh work
+PASS: restart loads both baseline record without reason and new record with reason
+PASS: private .env/config/data sentinel/tunnel config remain byte-identical

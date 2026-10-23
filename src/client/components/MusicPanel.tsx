@@ -1,3 +1,4 @@
+import { UploadStatus } from './UploadStatus';
 import { useEffect, useRef, useState } from 'react';
 import { playbackPosition, type MusicSnapshot } from '../../shared/music';
 import type { Capabilities } from '../../shared/limits';
@@ -199,9 +200,9 @@ export function MusicPanel({
       {dm && (
         <details>
           <summary>
-            音乐管理 {music.tracks.length} / {caps?.maxMusic ?? '—'} · 单首{' '}
-            {caps?.musicBytes ?? '—'} 字节 · 总资源预算 {caps?.resourceBytes ?? '—'} 字节
+            音乐管理 {music.tracks.length} / {caps?.maxMusic ?? '—'}
           </summary>
+          <UploadStatus actions={actions} kind="music" />
           <label className="button">
             上传 MP3
             <input

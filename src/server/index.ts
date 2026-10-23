@@ -75,6 +75,14 @@ async function main() {
   logEvent('process.started', { port: cfg.port });
 }
 main().catch((error: unknown) => {
+  if (error instanceof Error && error.message.startsWith('不兼容的房间 schema'))
+    console.error(
+      JSON.stringify({
+        code: 'SCHEMA_INCOMPATIBLE',
+        message:
+          '旧房间存档不兼容：0.7.2 要求 schema 4，不执行迁移；请保留旧部署及备份，使用新的数据目录。',
+      }),
+    );
   logEvent('process.startup_failed', { error });
   process.exitCode = 1;
 });

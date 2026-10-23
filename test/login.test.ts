@@ -1,4 +1,4 @@
-import { createDom, installDomGlobals } from './environment';
+import { createDom, installDomGlobals, inputValue } from './environment';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { act, createElement } from 'react';
@@ -67,14 +67,10 @@ test('login uses actual states, accepts keyboard form submission, clears passwor
         .dispatchEvent(new env.dom.window.Event('submit', { bubbles: true, cancelable: true })),
     );
     assert.match(document.getElementById('st-login-message')!.textContent!, /请先输入/);
+    const nameInput = document.querySelector<HTMLInputElement>('#st-login-name')!;
+    await inputValue(nameInput, 'Test');
     const input = document.querySelector<HTMLInputElement>('#st-login-password')!;
-    await act(async () => {
-      Object.getOwnPropertyDescriptor(
-        env.dom.window.HTMLInputElement.prototype,
-        'value',
-      )!.set!.call(input, 'test-password');
-      input.dispatchEvent(new env.dom.window.Event('input', { bubbles: true }));
-    });
+    await inputValue(input, 'test-password');
     await act(async () =>
       document
         .querySelector('form')!
@@ -177,6 +173,10 @@ test('App transitions from actual client handshake to tabletop and back without 
   }
   globalThis.fetch = async (url, init) => {
     requests.push(String(url));
+    if (String(url) === '/api/session')
+      return new Response(JSON.stringify({ code: 'EXPIRED', error: '请重新输入房间密码' }), {
+        status: 401,
+      });
     if (String(url) === '/api/login')
       assert.equal(JSON.parse(String(init?.body)).password, 'actual-client-test');
     return new Response(
@@ -196,14 +196,10 @@ test('App transitions from actual client handshake to tabletop and back without 
   const root = createRoot(document.getElementById('root')!);
   try {
     await act(async () => root.render(createElement(App)));
+    const nameInput = document.querySelector<HTMLInputElement>('#st-login-name')!;
+    await inputValue(nameInput, 'Test');
     const input = document.querySelector<HTMLInputElement>('#st-login-password')!;
-    await act(async () => {
-      Object.getOwnPropertyDescriptor(
-        env.dom.window.HTMLInputElement.prototype,
-        'value',
-      )!.set!.call(input, 'actual-client-test');
-      input.dispatchEvent(new env.dom.window.Event('input', { bubbles: true }));
-    });
+    await inputValue(input, 'actual-client-test');
     await act(async () =>
       document
         .querySelector('form')!
@@ -227,7 +223,8 @@ test('App transitions from actual client handshake to tabletop and back without 
     assert.equal(env.intervals.size, 0);
     assert.equal(env.motionListeners.size, 0);
   } finally {
-    smalltable.leave();
+    await smalltable.leave();
+    await act(async () => root.unmount());
     globalThis.fetch = savedFetch;
     if (savedSocket) Object.defineProperty(globalThis, 'WebSocket', savedSocket);
     else Reflect.deleteProperty(globalThis, 'WebSocket');

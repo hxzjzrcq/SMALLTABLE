@@ -1,25 +1,17 @@
+import { launchBrowser, submitLogin } from './support/browser';
 import assert from 'node:assert/strict';
-import { chromium, type Page } from 'playwright';
+import type { Page } from 'playwright';
 import { listMethods, listVersions } from '@dndroll/core';
-import { fixture, roomPassword, dmPassword, token } from './support/management-fixture';
-import { readFile } from 'node:fs/promises';
-import { waitEvent } from './helpers';
+import { fixture, roomPassword } from './support/management-fixture';
 const f = await fixture();
-const browser = await chromium.launch({
-  headless: true,
-  ...(process.env.SMALLTABLE_CHROMIUM ? { executablePath: process.env.SMALLTABLE_CHROMIUM } : {}),
-  args: [
-    '--no-sandbox',
-    '--disable-dev-shm-usage',
-    '--use-gl=angle',
-    '--use-angle=swiftshader',
-    '--enable-unsafe-swiftshader',
-  ],
-});
+const browser = await launchBrowser([
+  '--use-gl=angle',
+  '--use-angle=swiftshader',
+  '--enable-unsafe-swiftshader',
+]);
 async function join(p: Page) {
   await p.goto(f.url);
-  await p.locator('#st-login-password').fill(roomPassword);
-  await p.getByRole('button', { name: '进入房间', exact: true }).click();
+  await submitLogin(p, 'Browser', roomPassword);
   await p.getByRole('button', { name: '属性工具', exact: true }).waitFor();
 }
 try {

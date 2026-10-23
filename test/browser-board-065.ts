@@ -1,21 +1,15 @@
+import { launchBrowser, submitLogin } from './support/browser';
+import { DEFAULT_CAPABILITIES } from '../src/shared/limits';
 import assert from 'node:assert/strict';
-import { chromium } from 'playwright';
 import sharp from 'sharp';
 import { fixture, roomPassword, dmPassword, token, drawing } from './support/management-fixture';
 import { randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
-const f = await fixture();
-const browser = await chromium.launch({
-  headless: true,
-  ...(process.env.SMALLTABLE_CHROMIUM ? { executablePath: process.env.SMALLTABLE_CHROMIUM } : {}),
-  args: [
-    '--no-sandbox',
-    '--disable-dev-shm-usage',
-    '--use-gl=angle',
-    '--use-angle=swiftshader',
-    '--enable-unsafe-swiftshader',
-  ],
-});
+const f = await fixture({ ...DEFAULT_CAPABILITIES, maxDMs: 2 });
+const browser = await launchBrowser([
+  '--use-gl=angle',
+  '--use-angle=swiftshader',
+  '--enable-unsafe-swiftshader',
+]);
 try {
   const manager = await f.peer();
   await manager.unlock();
@@ -41,8 +35,7 @@ try {
   const context = await browser.newContext({ viewport: { width: 320, height: 850 } }),
     page = await context.newPage();
   await page.goto(f.url);
-  await page.locator('#st-login-password').fill(roomPassword);
-  await page.getByRole('button', { name: '进入房间', exact: true }).click();
+  await submitLogin(page, 'Browser', roomPassword);
   await page.getByRole('button', { name: '查看全部', exact: true }).waitFor();
   await page.getByRole('button', { name: '收起面板', exact: true }).click();
   await page.getByRole('button', { name: '查看全部', exact: true }).click();

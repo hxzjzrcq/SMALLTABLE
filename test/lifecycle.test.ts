@@ -1,3 +1,4 @@
+let loginSequence068 = 0;
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -154,7 +155,7 @@ test(
       const login = await fetch(`http://127.0.0.1:${port}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: 'Room-Lifecycle-056' }),
+        body: JSON.stringify({ password: 'Room-Lifecycle-056', name: 'U' + ++loginSequence068 }),
       });
       assert.equal(login.status, 200);
       assert.deepEqual(await readFile(path.join(directory, 'credentials.json')), saved);

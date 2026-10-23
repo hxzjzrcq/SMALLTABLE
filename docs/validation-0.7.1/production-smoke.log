@@ -1,0 +1,1 @@
+PASS: clean production-only installation, npm start, index/assets entry, config API; no Vite installed

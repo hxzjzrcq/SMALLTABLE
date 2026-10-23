@@ -1,7 +1,7 @@
 import { logEvent } from './log.js';
 import express, { type Request } from 'express';
 import { createServer } from 'node:http';
-import { randomBytes, randomInt, randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { WebSocketServer, WebSocket } from 'ws';
 import path from 'node:path';
 import {
@@ -10,6 +10,7 @@ import {
   initialRoom,
   project,
   publicToken,
+  type Command,
   type Room,
   type ServerEvent,
 } from '../shared/model.js';
@@ -23,20 +24,14 @@ import { inspectMp3 } from './mp3.js';
 import { audioId } from '../shared/music.js';
 import { Storage } from './storage.js';
 import { backupLimits, type Config } from './config.js';
-interface Session {
-  id: string;
-  dm: boolean;
-  lastActivity: number;
-  created: number;
-  ws?: WebSocket;
-  alive: boolean;
-  limiter: Limiter;
-  rollLimiter: Limiter;
-  moveAt: Map<string, number>;
-  warned: boolean;
-}
+import { Sessions, type Session } from './sessions.js';
+import { SESSION_CLOSE, SessionError, temporaryId } from '../shared/session.js';
 export type CredentialAccess = Pick<CredentialStore, 'roomMatches' | 'dmMatches' | 'change'>;
-export async function createSmalltable(cfg: Config, credentials: CredentialAccess) {
+export async function createSmalltable(
+  cfg: Config,
+  credentials: CredentialAccess,
+  options: { now?: () => number } = {},
+) {
   const { mapBytes, mapPixels, mapEdge, tokenBytes, tokenEdge } = cfg.caps;
   const budgets = backupLimits(cfg.caps);
   const storage = new Storage({
@@ -56,9 +51,10 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
   await storage.assertBudget();
   let epoch = 0,
     credentialGeneration = 0;
-  const sessions = new Map<string, Session>(),
+  const sessions = new Sessions(cfg.caps, () => presence(), options.now),
     loginLimiter = new Limiter(20, 0.1),
     dmLimiter = new Limiter(5, 0.05),
+    passwordLimiter = new Limiter(5, 0.05),
     uploadLimiter = new Limiter(4, 0.05);
   const app = express();
   app.disable('x-powered-by');
@@ -68,7 +64,7 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
     maxPayload: Math.max(
       64 * 1024,
       cfg.caps.maxNames * 1024 + 1024,
-      cfg.caps.maxTokens * 40 + 1024,
+      (cfg.caps.maxTokens + 26) * 40 + 1024,
     ),
     perMessageDeflate: false,
     handleProtocols: () => 'tabletop',
@@ -86,7 +82,7 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
     return task;
   }
   const send = (s: Session, event: ServerEvent) => {
-    if (s.ws?.readyState !== WebSocket.OPEN) return;
+    if (!sessions.valid(s) || s.ws?.readyState !== WebSocket.OPEN) return;
     if (s.ws.bufferedAmount > 1024 * 1024) {
       logEvent('websocket.rejected', { reason: 'slow_client' });
       s.ws.close(4008, '连接过慢，请重连');
@@ -97,12 +93,18 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
   const broadcast = (event: ServerEvent) => {
     for (const s of sessions.values()) send(s, event);
   };
-  const presence = () =>
+  function presence() {
+    const online = [...sessions.values()].filter((s) => sessions.online(s));
     broadcast({
       type: 'presence',
-      count: [...sessions.values()].filter((s) => s.ws).length,
+      count: online.filter((s) => !s.dm).length,
       max: cfg.caps.maxSeats,
+      dms: online.filter((s) => s.dm).length,
+      maxDMs: cfg.caps.maxDMs,
     });
+    const players = online.map((s) => ({ target: s.target!, name: s.name, dm: s.dm }));
+    for (const s of online) if (s.dm) send(s, { type: 'players', players });
+  }
   const snapshot = (s: Session) => {
     send(s, { type: 'snapshot', room: project(room, s.dm), dm: s.dm, epoch, caps: cfg.caps });
     send(s, { type: 'saved', revision: savedRevision });
@@ -128,7 +130,7 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
       dirty = true;
       saveError = true;
       logEvent('storage.save_failed', { error: e });
-      broadcast({ type: 'error', message: '服务器保存失败，尚未安全落盘' });
+      broadcast({ type: 'error', code: 'SAVE_FAILED', message: '服务器保存失败，尚未安全落盘' });
     }
   }
   function changed(immediate = false) {
@@ -172,14 +174,28 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
       return false;
     }
   };
-  const cookieToken = (req: Request) =>
+  const cookieToken = (req: Request | import('node:http').IncomingMessage) =>
     req.headers.cookie
       ?.split(';')
       .map((x) => x.trim())
       .find((x) => x.startsWith('tt_room='))
       ?.slice(8);
-  const auth = (req: Request) =>
-    sessions.get(req.headers.authorization?.replace(/^Bearer /, '') ?? cookieToken(req) ?? '');
+  const auth = (req: Request) => {
+    const s = sessions.get(
+      req.headers.authorization?.replace(/^Bearer /, '') ?? cookieToken(req) ?? '',
+    );
+    return sessions.valid(s) ? s : undefined;
+  };
+  const setCookie = (res: express.Response, s?: Session) =>
+    res.setHeader(
+      'Set-Cookie',
+      `tt_room=${s?.id ?? ''}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${s ? Math.max(1, Math.ceil(((s.disconnectedUntil ?? sessions.now() + 45 * 60000) - sessions.now()) / 1000)) : 0}${cfg.cookieSecure ? '; Secure' : ''}`,
+    );
+  const sessionResponse = (res: express.Response, s: Session) => {
+    setCookie(res, s);
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ dm: s.dm, name: s.name });
+  };
   app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'same-origin');
@@ -215,55 +231,61 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
         logEvent('rate_limit.triggered', { scope: 'login' });
         return res.status(429).json({ error: '尝试过于频繁，请稍后重试' });
       }
-      if (sessions.size >= cfg.caps.maxSeats) {
-        logEvent('auth.login_failed', { reason: 'capacity' });
-        return res.status(409).json({ error: '房间人数已满' });
-      }
+      if (!temporaryId(req.body?.name).valid)
+        throw new SessionError('INVALID_ID', '临时 ID 须为 1–16 单位的英文字母、数字或汉字', 400);
       const generation = credentialGeneration;
-      if (!(await credentials.roomMatches(req.body?.password))) {
+      const previous = auth(req);
+      const password = req.body?.password;
+      const roomMatch = await credentials.roomMatches(password);
+      let dm = false;
+      if (!roomMatch) {
+        dm = await credentials.dmMatches(password);
+      }
+      if (generation !== credentialGeneration)
+        throw new SessionError('CREDENTIALS_CHANGED', '口令已更换，请重新进入', 403);
+      if (!roomMatch && !dm) {
         logEvent('auth.login_failed', { reason: 'invalid_credentials' });
-        return res.status(403).json({ error: '房间密码错误' });
+        throw new SessionError('INVALID_PASSWORD', '房间密码错误', 403);
       }
-      if (generation !== credentialGeneration) {
-        logEvent('auth.login_failed', { reason: 'credentials_changed' });
-        return res.status(403).json({ error: '房间口令已更换，请重新进入' });
-      }
-      // Capacity checked again after asynchronous password verification.
-      if (sessions.size >= cfg.caps.maxSeats) {
-        logEvent('auth.login_failed', { reason: 'capacity' });
-        return res.status(409).json({ error: '房间人数已满' });
-      }
-      const id = randomBytes(32).toString('hex');
-      const now = Date.now();
-      sessions.set(id, {
-        id,
-        dm: false,
-        lastActivity: now,
-        created: now,
-        alive: true,
-        limiter: new Limiter(50, 25),
-        rollLimiter: new Limiter(4, 1),
-        moveAt: new Map(),
-        warned: false,
-      });
-      res.setHeader(
-        'Set-Cookie',
-        `tt_room=${id}; HttpOnly; SameSite=Strict; Path=/${cfg.cookieSecure ? '; Secure' : ''}`,
-      );
-      res.setHeader('Cache-Control', 'no-store');
-      res.json({ token: id });
+      // No await between final policy checks and reservation / replacement.
+      const current = auth(req);
+      if (previous && current !== previous)
+        throw new SessionError('EXPIRED', '原会话已失效，请重新登录', 401);
+      sessions.check(req.body.name, dm, current);
+      if (current) sessions.revoke(current, 'REPLACED', '此会话已在其他页面打开');
+      const session = sessions.create(req.body.name, dm);
+      sessionResponse(res, session);
     } catch (e) {
       next(e);
     }
   });
+  app.post('/api/logout', (req, res) => {
+    const s = auth(req);
+    if (s) sessions.revoke(s, 'LOGGED_OUT', '已离开房间');
+    setCookie(res);
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ ok: true });
+  });
   app.use('/api', (req, res, next) => {
-    if (!auth(req)) return res.status(401).json({ error: '请重新输入房间密码' });
+    if (!auth(req)) return res.status(401).json({ code: 'EXPIRED', error: '请重新输入房间密码' });
     res.setHeader('Cache-Control', 'no-store');
     next();
   });
+  app.get('/api/session', (req, res) => {
+    sessionResponse(res, requireHttp(req, 'GET /api/session')!);
+  });
+  app.post('/api/session', (req, res, next) => {
+    try {
+      const s = requireHttp(req, 'POST /api/session')!;
+      sessions.reserve(s);
+      sessionResponse(res, s);
+    } catch (e) {
+      next(e);
+    }
+  });
   const requireDM = (req: Request, operation: HttpOperation) => {
     const s = requireHttp(req, operation);
-    if (!s?.ws) {
+    if (!s || !sessions.online(s)) {
       logEvent('auth.dm_failed', { reason: 'denied' });
       throw Error('需要解锁 DM 工具箱');
     }
@@ -272,7 +294,7 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
   app.post('/api/passwords', express.json({ limit: '4kb' }), async (req, res, next) => {
     try {
       requireDM(req, 'POST /api/passwords');
-      if (!dmLimiter.take(req.socket.remoteAddress ?? '')) {
+      if (!passwordLimiter.take(req.socket.remoteAddress ?? '')) {
         logEvent('rate_limit.triggered', { scope: 'password_change' });
         throw Error('密码尝试过于频繁，请稍后重试');
       }
@@ -285,16 +307,18 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
           logEvent('auth.dm_failed', { error, scope: 'password_change' });
           throw error;
         }
+        credentialGeneration++;
         if (input.roomPassword !== undefined) {
-          credentialGeneration++;
-          for (const s of sessions.values()) {
-            s.dm = false;
-            s.ws?.close(4003, '房间口令已更换，请重新进入');
-          }
-          sessions.clear();
+          for (const s of [...sessions.values()])
+            sessions.revoke(s, 'CREDENTIALS_CHANGED', '房间口令已更换，请重新进入');
         } else {
-          for (const s of sessions.values()) s.dm = false;
+          for (const s of [...sessions.values()])
+            if (s.source === 'dm')
+              sessions.revoke(s, 'CREDENTIALS_CHANGED', 'DM 密码已更换，请重新进入');
+          for (const s of [...sessions.values()].sort((a, b) => a.order - b.order))
+            if (sessions.valid(s)) sessions.demote(s);
           snapshots();
+          presence();
           broadcast({ type: 'error', message: 'DM 密码已更换，请重新解锁工具箱' });
         }
       });
@@ -517,34 +541,66 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
     else if (route === '/api/image/:kind') logEvent('image.process_failed', { error: err });
     else if (route === '/api/music') logEvent('music.failed', { error: err });
     else if (route === '/api/login') logEvent('auth.login_failed', { error: err });
-    res.status(400).json({ error: err.message || '请求失败' });
+    res.status(err instanceof SessionError ? err.status : 400).json({
+      code: err instanceof SessionError ? err.code : 'REQUEST_FAILED',
+      error: err.message || '请求失败',
+    });
   });
   server.on('upgrade', (req, socket, head) => {
     const protocols = String(req.headers['sec-websocket-protocol'] ?? '')
       .split(',')
       .map((x) => x.trim());
-    const s = sessions.get(protocols[1] ?? '');
-    if (req.url !== '/ws' || !originOK(req) || protocols[0] !== 'tabletop' || !s || s.ws) {
+    const s = sessions.get(cookieToken(req) ?? protocols[1] ?? '');
+    if (req.url !== '/ws' || !originOK(req) || protocols[0] !== 'tabletop' || !sessions.valid(s)) {
       logEvent('websocket.rejected', { reason: 'denied' });
+      if (s && !sessions.online(s)) s.reservedUntil = 0;
       socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
       socket.destroy();
       return;
     }
+    // Complete WS protocol on admission failure so the client receives a machine-readable close code.
+    try {
+      sessions.reserve(s);
+    } catch (error) {
+      wss.handleUpgrade(req, socket, head, (ws) =>
+        ws.close(
+          error instanceof SessionError && error.code === 'ID_CONFLICT'
+            ? SESSION_CLOSE.ID_CONFLICT
+            : error instanceof SessionError && error.code === 'DM_FULL'
+              ? SESSION_CLOSE.DM_FULL
+              : SESSION_CLOSE.PLAYER_FULL,
+          (error as Error).message,
+        ),
+      );
+      return;
+    }
+    const releaseHandshake = () => {
+      if (!sessions.online(s)) s.reservedUntil = 0;
+    };
+    socket.once('close', releaseHandshake);
+    socket.once('error', releaseHandshake);
     wss.handleUpgrade(req, socket, head, (ws) => {
-      s.ws = ws;
-      s.alive = true;
+      socket.off('close', releaseHandshake);
+      socket.off('error', releaseHandshake);
+      sessions.attach(s, ws);
       snapshot(s);
       presence();
       ws.on('error', (error) => logEvent('websocket.error', { error }));
-      ws.on('pong', () => (s.alive = true));
+      ws.on('pong', () => {
+        if (s.ws === ws) {
+          s.alive = true;
+          s.missed = 0;
+        }
+      });
       ws.on('close', () => {
         if (s.ws === ws) {
-          sessions.delete(s.id);
-          presence();
+          sessions.detach(s, ws);
           void enqueue(persist);
         }
       });
       ws.on('message', (data, isBinary) => {
+        if (s.ws !== ws || !sessions.valid(s)) return;
+        const receivedEpoch = epoch;
         // Reject floods before they can occupy the serialized mutation queue.
         if (isBinary || !s.limiter.take('all')) {
           if (isBinary) logEvent('websocket.rejected', { reason: 'binary' });
@@ -553,40 +609,54 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
           return;
         }
         void enqueue(async () => {
-          if (!sessions.has(s.id) || closed) return;
+          if (s.ws !== ws || !sessions.valid(s) || closed) return;
+          let failedCommand: Command | undefined;
           try {
-            let c;
-            try {
-              c = commandSchema.parse(JSON.parse(data.toString()));
-            } catch (error) {
-              logEvent('websocket.rejected', { reason: 'invalid_command' });
-              throw error;
-            }
+            const c = commandSchema.parse(JSON.parse(data.toString()));
+            failedCommand = c;
             if (!canCommand(s, c.type)) {
               logEvent('auth.dm_failed', { reason: 'denied', scope: 'ws' });
               throw Error('操作未授权');
             }
             if (c.type === 'activity') {
-              s.lastActivity = Date.now();
-              s.warned = false;
+              send(s, { type: 'activity' });
               return;
             }
+            if (receivedEpoch !== epoch) throw Error('桌面已更新，请重新操作');
             if (c.type === 'unlock') {
               if (!dmLimiter.take(req.socket.remoteAddress ?? '')) {
                 logEvent('rate_limit.triggered', { scope: 'dm' });
                 throw Error('DM 密码尝试过于频繁');
               }
+              const generation = credentialGeneration;
               if (!(await credentials.dmMatches(c.password))) {
                 logEvent('auth.dm_failed', { reason: 'invalid_credentials' });
                 throw Error('DM 密码错误');
               }
-              s.dm = true;
+              if (generation !== credentialGeneration || !sessions.valid(s) || s.ws !== ws)
+                throw Error('会话或口令已更新');
+              sessions.role(s, true);
               snapshot(s);
+              presence();
               return;
             }
             if (c.type === 'lock') {
-              s.dm = false;
-              snapshot(s);
+              sessions.demote(s);
+              if (sessions.valid(s)) snapshot(s);
+              presence();
+              return;
+            }
+            if (c.type === 'player.kick') {
+              const target = [...sessions.values()].find((t) => t.target === c.target);
+              if (
+                !target ||
+                !sessions.valid(target) ||
+                !sessions.online(target) ||
+                target.dm ||
+                target === s
+              )
+                throw Error('列表已更新，请重新选择在线普通玩家');
+              sessions.revoke(target, 'KICKED', '你已被 DM 移出房间');
               return;
             }
             if (c.type === 'map.select' || c.type === 'map.delete' || c.type === 'map.scale') {
@@ -632,6 +702,8 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
               }
               const t = room.tokens.find((t) => t.id === c.id);
               if (!t) throw Error('棋子已不存在');
+              if (t.publicId && c.type === 'note') throw Error('公共棋子不能修改说明');
+              if (t.hidden && c.type !== 'note') throw Error('棋子已隐藏，不能移动或旋转');
               if (c.type === 'move') {
                 const now = Date.now(),
                   last = s.moveAt.get(t.id) ?? 0;
@@ -654,6 +726,17 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
                   revision: room.revision,
                   epoch,
                 });
+              if (c.type === 'move' && c.final && c.moveId)
+                send(s, {
+                  type: 'move.ack',
+                  id: t.id,
+                  moveId: c.moveId,
+                  epoch,
+                  revision: room.revision,
+                  ok: true,
+                  x: t.x,
+                  y: t.y,
+                });
               return;
             }
             if (c.type === 'roll') {
@@ -667,6 +750,7 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
                 name: c.name,
                 time: new Date().toISOString(),
                 ...rollDice(c.expression, (n) => randomInt(1, n + 1)),
+                ...(c.reason ? { reason: c.reason } : {}),
               });
               room.rolls = room.rolls.slice(-cfg.caps.maxRolls);
               changed(true);
@@ -716,8 +800,44 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
             }
             const candidate = structuredClone(room);
             switch (c.type) {
+              case 'public.take':
+                if (c.epoch !== epoch) throw Error('桌面已更新');
+                if (candidate.tokens.some((t) => t.publicId === c.publicId))
+                  throw Error('此公共棋子已在桌上');
+                candidate.tokens.push({
+                  id: randomUUID(),
+                  publicId: c.publicId,
+                  label: c.publicId,
+                  name: '',
+                  shape: 'circle',
+                  color: '#3872a4',
+                  size: 1,
+                  angle: 0,
+                  x: c.x,
+                  y: c.y,
+                  asset: null,
+                  hidden: false,
+                  note: '',
+                  secret: '',
+                });
+                break;
+              case 'token.label':
+              case 'token.hidden': {
+                if (c.epoch !== epoch) throw Error('桌面已更新');
+                const t = candidate.tokens.find((t) => t.id === c.id);
+                if (!t) throw Error('棋子不存在');
+                if (c.type === 'token.hidden') {
+                  if (t.publicId) throw Error('公共棋子不能隐藏');
+                  t.hidden = c.hidden;
+                } else {
+                  if (!t.publicId && !s.dm) throw Error('操作未授权');
+                  t.label = c.label;
+                }
+                break;
+              }
               case 'create':
-                if (candidate.tokens.length >= cfg.caps.maxTokens)
+                if (c.token.publicId) throw Error('请通过公共盒取用');
+                if (candidate.tokens.filter((t) => !t.publicId).length >= cfg.caps.maxTokens)
                   throw Error(`棋子数量已达 ${cfg.caps.maxTokens}`);
                 if (candidate.tokens.some((t) => t.id === c.token.id)) throw Error('重复棋子 ID');
                 if (c.token.asset) {
@@ -729,11 +849,19 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
               case 'edit': {
                 const i = candidate.tokens.findIndex((t) => t.id === c.token.id);
                 if (i < 0) throw Error('棋子不存在');
+                if (candidate.tokens[i].publicId || c.token.publicId)
+                  throw Error('公共棋子仅允许改字、归还');
                 if (c.token.asset && c.token.asset !== candidate.tokens[i].asset) {
                   storage.checkBinding(c.token.asset, c.uploadId, s.id, room);
                   await storage.checkImage(c.token.asset, 'token');
                 }
-                candidate.tokens[i] = c.token;
+                candidate.tokens[i] = {
+                  ...c.token,
+                  x: candidate.tokens[i].x,
+                  y: candidate.tokens[i].y,
+                  angle: candidate.tokens[i].angle,
+                  hidden: candidate.tokens[i].hidden,
+                };
                 break;
               }
               case 'delete':
@@ -741,8 +869,14 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
                 if (c.type === 'delete.many' && c.epoch !== epoch)
                   throw Error('桌面已更新，请重新操作');
                 const ids = new Set(c.type === 'delete' ? [c.id] : c.ids);
+                if (
+                  !s.dm &&
+                  (candidate.tokens.some((t) => ids.has(t.id) && !t.publicId) ||
+                    (c.type === 'delete' && !candidate.tokens.some((t) => t.id === c.id)))
+                )
+                  throw Error('操作未授权');
                 candidate.tokens = candidate.tokens.filter((t) => !ids.has(t.id));
-                // Missing IDs may have been deleted by another DM; never recreate them.
+                // Missing IDs may already have been deleted or returned; skip them.
                 if (c.type === 'delete.many' && candidate.tokens.length === room.tokens.length) {
                   snapshot(s);
                   return;
@@ -764,6 +898,7 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
               default:
                 throw Error('未实现的房间命令');
             }
+            parseRoom(candidate, cfg.caps);
             await commitRoom(candidate, c.type === 'clear' || c.type === 'grid');
             if (c.type === 'delete' || c.type === 'delete.many') {
               const ids = c.type === 'delete' ? [c.id] : c.ids;
@@ -774,40 +909,46 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
               await storage.collect(room, music.tracks);
             }
           } catch (e) {
+            if (s.ws !== ws || !sessions.valid(s)) return;
+            const c = failedCommand;
+            if (c?.type === 'move' && c.final && c.moveId) {
+              const t = room.tokens.find((t) => t.id === c.id);
+              send(s, {
+                type: 'move.ack',
+                id: c.id,
+                moveId: c.moveId,
+                epoch,
+                revision: room.revision,
+                ok: false,
+                x: t?.x,
+                y: t?.y,
+                message: e instanceof Error ? e.message : '移动失败',
+              });
+            }
             snapshot(s);
-            send(s, { type: 'error', message: e instanceof Error ? e.message : '操作失败' });
+            send(s, {
+              type: 'error',
+              code:
+                e instanceof Error && e.message.startsWith('保存失败')
+                  ? 'SAVE_FAILED'
+                  : 'COMMAND_FAILED',
+              message: e instanceof Error ? e.message : '操作失败',
+            });
           }
         });
       });
     });
   });
   const maintenance = setInterval(() => {
-    const now = Date.now();
-    for (const [id, s] of sessions) {
+    const now = sessions.now();
+    for (const s of [...sessions.values()]) {
+      if (!sessions.valid(s)) continue;
       if (!s.ws) {
-        if (now - s.created > 15000) sessions.delete(id);
+        if (s.reservedUntil <= now) s.reservedUntil = 0;
         continue;
       }
-      if (now - s.lastActivity >= cfg.caps.idleMs) {
-        s.ws.close(4001, '长时间无操作，请重新进入');
-        sessions.delete(id);
-        presence();
-        continue;
-      }
-      if (now - s.lastActivity >= cfg.caps.idleMs - 60000 && !s.warned) {
-        s.warned = true;
-        send(s, {
-          type: 'idle',
-          seconds: Math.ceil((cfg.caps.idleMs - (now - s.lastActivity)) / 1000),
-        });
-      }
-      if (!s.alive) {
-        logEvent('websocket.rejected', { reason: 'heartbeat' });
-        s.ws.terminate();
-        continue;
-      }
-      s.alive = false;
-      s.ws.ping();
+      sessions.heartbeat(s);
+      if (s.ws) send(s, { type: 'activity' });
     }
     void enqueue(async () => {
       if (dirty) await persist();
@@ -827,7 +968,7 @@ export async function createSmalltable(cfg: Config, credentials: CredentialAcces
       music.close();
       clearInterval(maintenance);
       if (pending) clearTimeout(pending);
-      for (const s of sessions.values()) s.ws?.terminate();
+      for (const ws of wss.clients) ws.terminate();
       await enqueue(persist);
       try {
         await new Promise<void>((r) => wss.close(() => r()));

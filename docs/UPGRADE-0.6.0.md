@@ -21,7 +21,7 @@
 3. 按 [旧限额环境变量迁移表](CONFIGURATION.md#从旧环境变量迁移)，把已设置的 `MAX_SEATS`、`IDLE_MINUTES`、`MAP_BYTES`、`MAP_PIXELS`、`MAP_EDGE`、`TOKEN_BYTES`、`TOKEN_EDGE` 转入 JSON，再从 `.env`、容器或服务管理器移除旧变量。检测到这些变量时拒绝启动并说明目标字段，不静默忽略。
 4. 删除无效的 `DNDROLL_URL`；属性工具仍加载同源 `/dndroll.html`。HOST、PORT、DATA_DIR、COOKIE_SECURE 继续保留，具体行为见 [配置](CONFIGURATION.md)。保留自己的 JSON 配置，不要用默认示例覆盖自定义值。修改限额须重启生效。
 5. 已有有效 `credentials.json` 时无需重新设置密码，旧初始环境密码不会覆盖当前凭证；损坏凭证不会静默重新初始化。确需重置时按 [安全与密码管理](SECURITY.md#密码管理与重置) 操作。
-6. 在新程序根目录执行以下命令，然后启动服务。必须保留开发依赖，不能使用 `npm ci --omit=dev`。
+6. 在新程序根目录执行以下命令，然后启动服务。0.6.0 当时要求保留开发依赖；升级到 0.6.9 后以[当前部署约定](DEPENDENCIES.md)为准。
 
 ```bash
 npm ci

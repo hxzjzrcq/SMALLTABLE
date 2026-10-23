@@ -6,14 +6,14 @@
 
 Linux x86_64，Node v24.19.0，npm 11.9.0。复用该工作区已安装的 0.6.5 锁定依赖目录，本次没有重新执行 npm ci 或联网下载。真实浏览器为本机 Chromium 153.0.8010.0，由 SMALLTABLE_CHROMIUM 指定。仅使用临时测试房间。
 
-| 命令 | 结果 | 证据（相对 docs） |
-| --- | --- | --- |
-| npm run format | 已执行，已有历史记录恢复原始字节 | 当前源码 |
-| npm run build | 通过，包含类型检查和全部构建产物 | validation-0.6.6-2026-10-22/build.log |
-| npm run check | 通过 | validation-0.6.6-2026-10-22/typecheck.log |
-| npm run test:stage | 8 项通过 | validation-0.6.6-2026-10-22/stage.log |
-| node --import tsx --test test/shortcuts.test.ts test/token-controls.test.ts test/ui-state.test.ts test/board-drawing.test.ts test/transparent-token.test.ts | 5 项通过 | validation-0.6.6-2026-10-22/shortcuts-and-board.log |
-| SMALLTABLE_CHROMIUM=/tmp/st-chromium/chrome node --import tsx test/browser-shortcuts-066.ts | 通过 | validation-0.6.6-2026-10-22/browser-shortcuts.log |
+| 命令                                                                                                                                                        | 结果                             | 证据（相对 docs）                                   |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | --------------------------------------------------- |
+| npm run format                                                                                                                                              | 已执行，已有历史记录恢复原始字节 | 当前源码                                            |
+| npm run build                                                                                                                                               | 通过，包含类型检查和全部构建产物 | validation-0.6.6-2026-10-22/build.log               |
+| npm run check                                                                                                                                               | 通过                             | validation-0.6.6-2026-10-22/typecheck.log           |
+| npm run test:stage                                                                                                                                          | 8 项通过                         | validation-0.6.6-2026-10-22/stage.log               |
+| node --import tsx --test test/shortcuts.test.ts test/token-controls.test.ts test/ui-state.test.ts test/board-drawing.test.ts test/transparent-token.test.ts | 5 项通过                         | validation-0.6.6-2026-10-22/shortcuts-and-board.log |
+| SMALLTABLE_CHROMIUM=/tmp/st-chromium/chrome node --import tsx test/browser-shortcuts-066.ts                                                                 | 通过                             | validation-0.6.6-2026-10-22/browser-shortcuts.log   |
 
 构建存在第三方 Zod PURE 注释位置提示和宿主 npm http-proxy 配置提示，构建成功；未修改依赖以掩盖提示。
 

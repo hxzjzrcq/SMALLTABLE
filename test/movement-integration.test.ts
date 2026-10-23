@@ -1,3 +1,4 @@
+let loginSequence068 = 0;
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -23,11 +24,19 @@ test('15 connections, 255 tokens, concurrent movement converges; log cap and res
             (res) => {
               let body = '';
               res.on('data', (d) => (body += d));
-              res.on('end', () => resolve({ status: res.statusCode!, body: JSON.parse(body) }));
+              res.on('end', () =>
+                resolve({
+                  status: res.statusCode!,
+                  body: {
+                    ...JSON.parse(body),
+                    token: res.headers['set-cookie']?.[0]?.match(/tt_room=([^;]+)/)?.[1],
+                  },
+                }),
+              );
             },
           );
           req.on('error', reject);
-          req.end(JSON.stringify({ password: 'test-room' }));
+          req.end(JSON.stringify({ password: 'test-room', name: 'U' + ++loginSequence068 }));
         });
       });
       assert.equal(response.status, 200);

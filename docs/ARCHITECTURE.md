@@ -1,6 +1,6 @@
 # 当前架构
 
-适用于 SMALLTABLE 0.6.7。运行与功能入口见 [README](../README.md)，依赖和部署约定见 [DEPENDENCIES](DEPENDENCIES.md)。
+适用于 SMALLTABLE 0.7.2。运行与功能入口见 [README](../README.md)，依赖和部署约定见 [DEPENDENCIES](DEPENDENCIES.md)。
 
 ## 模块与数据归属
 
@@ -13,6 +13,8 @@
 | `src/server/permissions.ts`                    | HTTP 与 WebSocket 分别登记的明确授权，未知动作拒绝                 |
 | `src/server/bootstrap.ts`                      | 初始化凭证、组装房间服务及凭证/互斥资源清理                        |
 | `src/shared/limits.ts`、`src/server/config.ts` | 默认限额、启动读取与集中派生预算；不处理密码                       |
+| `src/server/sessions.ts`                       | 仅内存会话、期限、在线占位、角色与连接交替；不接触存档             |
+| `src/shared/session.ts`                        | 临时 ID 纯函数、会话错误码与非秘密管理目标类型                     |
 | `src/server/auth.ts`                           | 限流工具                                                           |
 | `src/server/credentials.ts`                    | 密码策略与独立凭证持久化，网页及离线重置共用                       |
 | `src/server/instance-lock.ts`                  | 数据目录的操作系统级本机互斥，进程退出自动释放；启动与离线重置共用 |
@@ -27,9 +29,9 @@
 
 凭证、密码政策、授权清单及撤权行为的唯一主要说明见 [安全](SECURITY.md)。Config 不处理密码，Storage 不接触凭证；组装层拥有 CredentialStore 和运行互斥的生命周期。Storage 接口为 `{ dataDir, images, resourceBytes, backup, parse }`，parse 在外层绑定当前限额。配置及预算说明见 [配置](CONFIGURATION.md)。
 
-schemaVersion 为 3；`parseRoom` 明确拒绝其他版本，不执行迁移。磁盘加载和 ZIP 恢复共用该入口。棋子、公开注释、投骰记录、先攻表及共享直线进入房间快照和备份；清空画线仅 DM 可用。
+schemaVersion 为 4；`parseRoom` 明确拒绝其他版本，不执行迁移。磁盘加载和 ZIP 恢复共用该入口。棋子、公开注释、投骰记录、先攻表及共享直线进入房间快照和备份；清空画线仅 DM 可用。
 
-私人笔记只存玩家浏览器；相机、面板显隐和未提交的交互预览属于本机状态。Board 本地预览画线，松开后提交一次；棋子拖动则发送节流位置更新和最终位置。
+私人笔记只存玩家浏览器；相机、面板显隐和未提交的交互预览属于本机状态。Board 本地预览画线，松开后提交一次；棋子拖动每秒最多发送 10 次中间位置，松手发送带 moveId 的最终位置。控制器保留最终预览，匹配 move.ack 后结束；2 秒超时回到最近权威位置。回执不等于落盘。
 
 DNDROLL 运行于独立 iframe。规则只调用 Core，房间不保存或广播属性结果；活动桥接只传活动通知。批量 UI 不展示，Core 保留原样，上游标识与源码哈希见 `packages/dndroll-core/UPSTREAM.json`。
 
@@ -47,7 +49,7 @@ DNDROLL 运行于独立 iframe。规则只调用 Core，房间不保存或广播
 
 ## 0.6.0 消息与更新边界
 
-`src/shared/model.ts` 仍是消息和房间结构权威。房间 schema 不变；WebSocket snapshot 新增 `caps`，服务端每次快照均发送当前生效限额。类型中保留可选字段以兼容旧消息及既有测试，客户端缺少 caps 时保留已读取配置。GET /api/config 及 caps 增加 maxInitiative、maxDrawings、maxRolls、maxNames，删除无效 dndrollUrl。health 的会话要求见 [安全](SECURITY.md#授权登记)；不能把本轮称为协议完全未变。
+`src/shared/model.ts` 仍是消息和房间结构权威。该次历史更新未改变 schema；当前 schema 为 4。WebSocket snapshot 新增 `caps`，服务端每次快照均发送当前生效限额。类型中保留可选字段以兼容旧消息及既有测试，客户端缺少 caps 时保留已读取配置。GET /api/config 及 caps 增加 maxInitiative、maxDrawings、maxRolls、maxNames，删除无效 dndrollUrl。health 的会话要求见 [安全](SECURITY.md#授权登记)；不能把本轮称为协议完全未变。
 
 棋子增量仍只更新 room.tokens 和 revision，保留其它切片引用。面板只接收所需切片，memo 和稳定回调阻断无关执行；TokenList 只比较其实际显示字段、顺序、选中状态与限额。没有新增 store 或状态库。具体草稿、挂载和撤权约定见 [UI](UI.md)。
 
@@ -73,7 +75,7 @@ DNDROLL 运行于独立 iframe。规则只调用 Core，房间不保存或广播
 
 `fitRoomCamera` 集中计算缩放背景、旋转后的完整棋子和画线边界，保留屏幕边距；相机缩放下限统一由 clampScale 控制。掀桌复用 epoch，清空棋子/画线并使旧操作失效，不清空其他房间字段。
 
-键盘快捷键由 `client/shortcuts.ts` 统一处理事件保护和监听清理，App 绑定既有控制器命令；房间 schema 不变；批量删除协议见下。具体规则见 [UI](UI.md#键盘快捷键)。
+键盘快捷键由 `client/shortcuts.ts` 统一处理事件保护和监听清理，App 绑定既有控制器命令；快捷键不另建状态格式；批量删除协议见下。具体规则见 [UI](UI.md#键盘快捷键)。
 
 ## 0.6.7 克隆与批量删除
 
@@ -81,4 +83,26 @@ DNDROLL 运行于独立 iframe。规则只调用 Core，房间不保存或广播
 
 SmalltableClient.cloneToken 从最新快照取字段，使用现有 create 命令；共享素材哈希，沿用数量、图片验证及资源引用逻辑。快速克隆不保存模板、不引入素材库。
 
-新增 `delete.many`，携带唯一、非空且不超过实际棋子数量上限的 ID 数组与 epoch。服务端在既有串行队列内重验 DM 权限与 epoch，单次过滤候选房间，保存成功后发布一个快照并清理资源。与单枚删除共用提交和清理路径。保存失败保留原内存及磁盘房间，不提前删除图片。其他 DM 已删除的 ID 忽略；全部已消失则返回当前快照、不新增修订。过期 epoch 整次拒绝。删除后迟到移动不能重新创建棋子。WebSocket 消息容量推导覆盖配置允许的批量 ID 列表。
+新增 `delete.many`，携带唯一、非空且不超过实际棋子数量上限的 ID 数组与 epoch。服务端在既有串行队列内重验对象权限与 epoch（PL 只允许全部为公共棋子），单次过滤候选房间，保存成功后发布一个快照并清理资源。与单枚删除共用提交和清理路径。保存失败保留原内存及磁盘房间，不提前删除图片。其他 DM 已删除的 ID 忽略；全部已消失则返回当前快照、不新增修订。过期 epoch 整次拒绝。删除后迟到移动不能重新创建棋子。WebSocket 消息容量推导覆盖配置允许的批量 ID 列表。
+
+## 会话与协议接入
+
+会话存于 Sessions；认证 Token 与每次在线角色对应的随机管理 target 分离。WebSocket 接管先替换归属，再关闭旧连接；message、pong、close 及串行执行均核对当前 socket。既有房间队列仍是业务变更的唯一入口。会话 API 不维护第二份房间状态。
+
+`src/shared/model.ts` 增加 `player.kick`、`players`、`activity` 回执；presence 分别携带普通人数/上限及 DM 人数/上限。`src/shared/session.ts` 定义 HTTP 机器错误码与会话关闭码。新增 GET /api/session 验证 Cookie、只返回角色与昵称并续写 HttpOnly Cookie；POST /api/session 检查实时容量和 ID 后申请 15 秒握手占位；POST /api/logout 支持离线会话及幂等注销。服务端在线维护消息沿用 activity 事件，客户端收到后通过 GET /api/session 续写 Cookie；离线请求不延长固定截止时间。
+
+SmalltableClient 的认证请求串行，退出等待在途认证完成后注销；组件卸载不注销。只对临时网络断开最多退避重试十次；终止原因用错误码处理。会话与权限合同见 [安全](SECURITY.md#会话与席位)，界面说明见 [UI](UI.md#登录与会话)。
+
+客户端将连接清理与桌面卸载分离。临时网络错误或满员保留公开快照及组件挂载，先剥除私有字段；终止错误清除整个桌面。具体原因与按钮规则唯一见 [UI 桌面生命周期](UI.md#断线时的桌面生命周期069)。
+
+## 0.7.0 展示与理由字段
+
+controller.recovery 仅驱动无桌面时的恢复展示，沿用 Cookie、错误码与席位处理。LoginShell 负责登录/恢复的共用装饰生命周期；版本取根 package.json。shared/roll-input.ts 复用原 rollDice 做确定性语法验证及输入拆分，不消耗随机源；model 的命令及记录使用同一可选理由校验，app 将它加入公开记录。骰子计算与记录上限保持原约定；当前 schemaVersion 统一为 4。
+
+## 公共身份与隐藏状态
+
+公共棋子和普通棋子共用 tokens、坐标、队列、提交及投影；publicId 是 A–Z 不可变身份。盒中状态由固定集合减去在桌身份推导，不保存第二套坐标。普通池按无 publicId 计数，公共池额外 26；房间模型、批量命令与备份预算分别检查。公共棋子无图片、隐藏或说明字段的可编辑入口，磁盘/ZIP 加载同样检查固定默认外观及身份唯一性。
+
+普通棋子 hidden 持久化，隐藏不减少额度或图片引用。Board 从渲染和命中区域剔除隐藏对象，列表保留并可本机定位；服务端对 DM/PL 一并拒绝隐藏对象的移动/旋转。隐藏、改字、取用/归还、创建/克隆沿用候选保存路径，失败保留原房间。
+
+UploadStatus 只呈现控制器的实际上传阶段；XMLHttpRequest 的上传进度与服务器处理响应分开，同入口防重复。诊断从固定字段白名单生成，不记录房间正文或凭证。

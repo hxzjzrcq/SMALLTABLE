@@ -1,14 +1,10 @@
+import { launchBrowser, submitLogin } from './support/browser';
 import assert from 'node:assert/strict';
-import { chromium } from 'playwright';
 import { fixture, roomPassword, dmPassword, token } from './support/management-fixture';
 import { DEFAULT_CAPABILITIES } from '../src/shared/limits';
 import sharp from 'sharp';
-const f = await fixture({ ...DEFAULT_CAPABILITIES, maxTokens: 4 });
-const browser = await chromium.launch({
-  headless: true,
-  executablePath: process.env.SMALLTABLE_CHROMIUM,
-  args: ['--no-sandbox', '--disable-dev-shm-usage'],
-});
+const f = await fixture({ ...DEFAULT_CAPABILITIES, maxDMs: 2, maxTokens: 4 });
+const browser = await launchBrowser();
 try {
   const dm = await f.peer();
   await dm.unlock();
@@ -27,6 +23,7 @@ try {
   const source = {
     ...token(),
     name: '杂兵',
+    hidden: false,
     label: 'g',
     note: 'HP 10',
     secret: 'private guard',
@@ -45,8 +42,7 @@ try {
     }),
   );
   await page.goto(f.url);
-  await page.locator('#st-login-password').fill(roomPassword);
-  await page.getByRole('button', { name: '进入房间', exact: true }).click();
+  await submitLogin(page, 'Browser', roomPassword);
   await page.locator('.board-token').waitFor();
   await page.getByRole('button', { name: '棋子', exact: true }).click();
   assert.equal(
@@ -60,6 +56,7 @@ try {
   await page.getByRole('button', { name: '掀桌', exact: true }).waitFor();
   await page.getByRole('button', { name: '棋子', exact: true }).click();
   const sourceRow = page.locator('.token-list-row').first();
+  await sourceRow.locator('summary').click();
   await sourceRow.getByRole('button', { name: '克隆 杂兵', exact: true }).click();
   await page.waitForFunction(() => document.querySelectorAll('.board-token').length === 2);
   await sourceRow.getByRole('button', { name: '克隆 杂兵', exact: true }).click();
@@ -159,7 +156,9 @@ try {
   const edge = { ...remaining, x: 32768, y: 32768, note: 'HP 3' };
   const oldRev = f.service.getRoom().revision;
   dm.send({ type: 'edit', token: edge });
-  await dm.until((e) => e.type === 'snapshot' && e.room.revision > oldRev);
+  dm.send({ type: 'move', id: edge.id, x: edge.x, y: edge.y, final: true, epoch: 0 });
+  await dm.until((e) => e.type === 'token' && e.token.x === 32768 && e.revision > oldRev);
+  await page.locator('.token-list-row').first().locator('summary').click();
   await page.getByRole('button', { name: '克隆 杂兵', exact: true }).click();
   await page.waitForFunction(() => document.querySelectorAll('.board-token').length === 2);
   assert.equal(f.service.getRoom().tokens[1].x, 32744);

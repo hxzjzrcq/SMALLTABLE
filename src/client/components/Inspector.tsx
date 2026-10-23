@@ -1,5 +1,7 @@
+import { LabelEditor } from './PublicBox';
+import { UploadStatus } from './UploadStatus';
 import { memo, useEffect, useRef, useState } from 'react';
-import type { PublicToken, Token } from '../../shared/model';
+import { tokenLabel, type PublicToken, type Token } from '../../shared/model';
 import type { SmalltableClient } from '../controller';
 export function Inspector({
   token,
@@ -7,7 +9,6 @@ export function Inspector({
   actions,
   connected,
   tokenBytes,
-  tokenEdge,
   maxTokens,
 }: {
   token: PublicToken | undefined;
@@ -15,7 +16,6 @@ export function Inspector({
   actions: SmalltableClient;
   connected: boolean;
   tokenBytes?: number;
-  tokenEdge?: number;
   maxTokens?: number;
 }) {
   return (
@@ -30,27 +30,46 @@ export function Inspector({
             边长 {token.size} 格 · 旋转 {Math.round(token.angle)}°
           </div>
           <div className="button-row">
-            <button disabled={!connected} onClick={() => actions.rotate(token, -90)}>
+            <button
+              disabled={!connected || token.hidden}
+              onClick={() => actions.rotate(token, -90)}
+            >
               ↶ 90°
             </button>
-            <button disabled={!connected} onClick={() => actions.rotate(token, 90)}>
+            <button disabled={!connected || token.hidden} onClick={() => actions.rotate(token, 90)}>
               ↷ 90°
             </button>
-            <button disabled={!connected} onClick={() => actions.rotate(token, 15)}>
+            <button disabled={!connected || token.hidden} onClick={() => actions.rotate(token, 15)}>
               ↷ 15°
             </button>
           </div>
-          <PublicNoteEditor
-            key={`note:${token.id}`}
-            token={token}
-            actions={actions}
-            connected={connected}
-          />
-          {dm && (
+          {token.publicId && (
+            <>
+              <p>公共身份 {token.publicId}</p>
+              <LabelEditor key={token.id} token={token} actions={actions} connected={connected} />
+              <button
+                disabled={!connected}
+                onClick={() => {
+                  if (confirm('归还这枚公共棋子并重置？'))
+                    actions.send({ type: 'delete', id: token.id });
+                }}
+              >
+                归还盒子
+              </button>
+            </>
+          )}
+          {!token.publicId && (
+            <PublicNoteEditor
+              key={`note:${token.id}`}
+              token={token}
+              actions={actions}
+              connected={connected}
+            />
+          )}
+          {dm && !token.publicId && (
             <TokenEditor
               key={`editor:${token.id}`}
               tokenBytes={tokenBytes}
-              tokenEdge={tokenEdge}
               maxTokens={maxTokens}
               token={token}
               actions={actions}
@@ -115,16 +134,15 @@ function TokenEditor({
   actions,
   connected,
   tokenBytes,
-  tokenEdge,
   maxTokens,
 }: {
   token: PublicToken;
   actions: SmalltableClient;
   connected: boolean;
   tokenBytes?: number;
-  tokenEdge?: number;
   maxTokens?: number;
 }) {
+  const composing = useRef(false);
   const pendingUpload = useRef<string | undefined>(undefined);
   const active = useRef(true);
   useEffect(() => {
@@ -172,14 +190,36 @@ function TokenEditor({
   return (
     <form
       className="editor"
+      onCompositionStart={() => {
+        composing.current = true;
+      }}
+      onCompositionEnd={() => {
+        composing.current = false;
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && e.nativeEvent.isComposing) e.preventDefault();
+      }}
       onSubmit={(e) => {
         e.preventDefault();
+        if (composing.current) return;
         const latest = actions.getSnapshot().room?.tokens.find((t) => t.id === token.id);
         if (!latest) return;
+        const label = tokenLabel.safeParse(draft.label);
+        if (!label.success) {
+          setError('棋面文字须为 1–4 个字符，不能含换行或控制字符');
+          return;
+        }
         actions.send({
           type: 'edit',
           uploadId: pendingUpload.current,
-          token: { ...draft, note: latest.note, x: latest.x, y: latest.y, angle: latest.angle },
+          token: {
+            ...draft,
+            label: label.data,
+            note: latest.note,
+            x: latest.x,
+            y: latest.y,
+            angle: latest.angle,
+          },
         });
         setError('修改已提交；请留意顶部保存状态');
       }}
@@ -229,9 +269,7 @@ function TokenEditor({
         DM 私有说明
         <textarea rows={3} value={draft.secret} onChange={(e) => field('secret', e.target.value)} />
       </label>
-      <p className="meta">
-        棋子图片：{tokenBytes ?? '—'} 字节 · 单边 {tokenEdge ?? '—'} 像素
-      </p>
+      <UploadStatus actions={actions} kind="token" />
       <div className="button-row">
         <label className="button">
           设置图片
@@ -281,7 +319,7 @@ function TokenEditor({
           disabled={
             !connected ||
             maxTokens === undefined ||
-            (actions.getSnapshot().room?.tokens.length ?? 0) >= maxTokens
+            (actions.getSnapshot().room?.tokens.filter((t) => !t.publicId).length ?? 0) >= maxTokens
           }
           onClick={() => actions.cloneToken(token.id)}
         >
@@ -314,11 +352,17 @@ export const TokenList = memo(
     onClone,
     connected = true,
     maxTokens,
+    onLocate,
+    onHidden,
+    onReturn,
   }: {
     tokens: PublicToken[];
     selected: readonly string[];
     onSelect: (id: string, additive?: boolean) => void;
     onClone?: (id: string) => void;
+    onLocate?: (id: string) => void;
+    onHidden?: (id: string, hidden: boolean) => void;
+    onReturn?: (id: string) => void;
     connected?: boolean;
     maxTokens?: number;
   }) {
@@ -328,33 +372,53 @@ export const TokenList = memo(
         <h2>
           棋子清单{' '}
           <span className="meta">
-            {tokens.length} / {maxTokens ?? '—'}
+            {tokens.filter((t) => !t.publicId).length} / {maxTokens ?? '—'}
           </span>
         </h2>
         <div className="token-list">
           {tokens.map((t, i) => (
-            <div className="token-list-row" key={t.id}>
+            <div className="token-list-row" data-token-row-id={t.id} key={t.id}>
               <button
                 data-board-selection="true"
                 aria-pressed={selection.has(t.id)}
                 className={selection.has(t.id) ? 'active' : ''}
                 onClick={(e) => onSelect(t.id, e.shiftKey)}
+                onDoubleClick={() => onLocate?.(t.id)}
               >
                 <span
                   className="swatch"
                   style={{ background: t.color, borderRadius: t.shape === 'circle' ? '50%' : 2 }}
                 />
-                {t.name || t.label || `棋子 ${i + 1}`}
+                {t.publicId ? `${t.publicId} · ${t.label}` : t.name || t.label || `棋子 ${i + 1}`}{' '}
+                {t.hidden ? ' · 已隐藏' : ''}
               </button>
-              {onClone && (
-                <button
-                  aria-label={`克隆 ${t.name || t.label || `棋子 ${i + 1}`}`}
-                  disabled={!connected || maxTokens === undefined || tokens.length >= maxTokens}
-                  onClick={() => onClone(t.id)}
-                >
-                  克隆
-                </button>
-              )}
+              <details className="token-row-actions">
+                <summary>操作</summary>
+                {onLocate && <button onClick={() => onLocate(t.id)}>定位</button>}
+                {onHidden && !t.publicId && (
+                  <button disabled={!connected} onClick={() => onHidden(t.id, !t.hidden)}>
+                    {t.hidden ? '显形' : '隐藏'}
+                  </button>
+                )}
+                {t.publicId && onReturn && (
+                  <button disabled={!connected} onClick={() => onReturn(t.id)}>
+                    归还
+                  </button>
+                )}
+                {onClone && (
+                  <button
+                    aria-label={`克隆 ${t.name || t.label || `棋子 ${i + 1}`}`}
+                    disabled={
+                      !connected ||
+                      maxTokens === undefined ||
+                      tokens.filter((t) => !t.publicId).length >= maxTokens
+                    }
+                    onClick={() => onClone(t.id)}
+                  >
+                    克隆
+                  </button>
+                )}
+              </details>
             </div>
           ))}
           {!tokens.length && <p className="empty">桌面暂无棋子</p>}
@@ -363,6 +427,9 @@ export const TokenList = memo(
     );
   },
   (a, b) =>
+    a.onLocate === b.onLocate &&
+    a.onHidden === b.onHidden &&
+    a.onReturn === b.onReturn &&
     a.selected === b.selected &&
     a.onClone === b.onClone &&
     a.connected === b.connected &&
@@ -373,6 +440,8 @@ export const TokenList = memo(
       const other = b.tokens[i];
       return (
         t.id === other.id &&
+        t.hidden === other.hidden &&
+        t.publicId === other.publicId &&
         t.name === other.name &&
         t.label === other.label &&
         t.color === other.color &&

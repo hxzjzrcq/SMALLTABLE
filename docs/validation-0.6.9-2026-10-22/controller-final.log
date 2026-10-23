@@ -1,0 +1,16 @@
+✔ UI controller removes private state on disconnect 4001 (6.332579ms)
+✔ UI controller removes private state on disconnect 4003 (0.830645ms)
+✔ initialization restores by Cookie only and terminal WS closes never schedule a reconnect (5.613492ms)
+✔ offline logout stores no credential and next initialization performs logout before any restoration (2.120024ms)
+✔ logout waits for an in-flight login response so late Set-Cookie cannot restore a signed-out session (1.448879ms)
+✔ temporary disconnect retains public desktop; full seats retain it; terminal causes remove it (3.693611ms)
+✔ HTTP recovery failures retain desktop for full/network only, and three retries stop visibly (4.113195ms)
+✔ live room updates preserve drafts and scroll, refresh visible data, and remove private controls on revocation (610.859663ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1562.530251

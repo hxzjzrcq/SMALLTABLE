@@ -1,3 +1,5 @@
+import { sessionBody } from './helpers';
+let loginSequence068 = 0;
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
@@ -33,12 +35,12 @@ async function fixture() {
     fetch(url + '/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ password, name: 'U' + ++loginSequence068 }),
     });
   async function peer() {
     const response = await login(roomPassword);
     assert.equal(response.status, 200);
-    const { token } = await response.json();
+    const { token } = await sessionBody(response);
     const ws = new WebSocket(url.replace('http', 'ws') + '/ws', ['tabletop', token]);
     sockets.push(ws);
     const events: ServerEvent[] = [];

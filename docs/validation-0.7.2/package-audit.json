@@ -1,0 +1,13 @@
+{
+  "version": "0.7.2",
+  "schemaVersion": 4,
+  "packageFileCount": 340,
+  "requiredArtifactsPresent": true,
+  "runtimeDataIncluded": false,
+  "privateConfigIncluded": false,
+  "nodeModulesIncluded": false,
+  "cacheIncluded": false,
+  "publicCmdCRLF": true,
+  "privateLauncherIncluded": false,
+  "cleanSourceMatchesFinal": true
+}

@@ -21,6 +21,7 @@ test('public note contract accepts only its field and validates bytes and epoch'
   const token = tokenSchema.parse({
     id: c.id,
     name: '',
+    hidden: false,
     label: '1',
     shape: 'circle',
     color: '#3872a4',

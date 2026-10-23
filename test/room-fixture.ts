@@ -1,3 +1,5 @@
+import { sessionBody } from './helpers';
+let loginSequence068 = 0;
 import { waitEvent, createSmalltable } from './helpers';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -43,9 +45,9 @@ export async function roomFixture() {
     const res = await fetch(address + '/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: 'test-room' }),
+      body: JSON.stringify({ password: 'test-room', name: 'U' + ++loginSequence068 }),
     });
-    return { res, body: await res.json() };
+    return { res, body: await sessionBody(res) };
   }
   async function peer() {
     const { res, body } = await login();
@@ -74,6 +76,7 @@ export async function roomFixture() {
 export const makeToken = () => ({
   id: randomUUID(),
   name: '骷髅',
+  hidden: false,
   label: '1',
   shape: 'circle' as const,
   color: '#3872a4',

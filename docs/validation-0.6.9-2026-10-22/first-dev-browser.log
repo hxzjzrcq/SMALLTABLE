@@ -1,0 +1,16 @@
+HTTP 403 http://127.0.0.1:5173/api/session {"error":"来源不允许"}
+HTTP 403 http://127.0.0.1:5173/api/login {"error":"来源不允许"}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('.app') to be visible[22m
+
+    at <anonymous> (/workspace/scratch/67347c4b7c57/work/SMALLTABLE-0.6.9/test/browser-recovery-069.ts:58:30) {
+  log: [ "  - waiting for locator('.app') to be visible" ],
+  name: 'TimeoutError'
+}
+
+Node.js v24.19.0

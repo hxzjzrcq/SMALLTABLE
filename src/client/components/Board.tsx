@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { WORLD_LIMIT, measure, type Drawing, type View } from '../../shared/model';
 import type { SmalltableClient } from '../controller';
 import {
   fitRoomCamera,
+  visibleWorldPlacement,
   clampScale,
   zoomCamera,
   pinchCamera,
   type Point,
   type Camera,
 } from '../camera';
+export type BoardView = { placement: () => Point | null; locate: (point: Point) => void };
 export function Board({
   room,
   selected,
@@ -20,6 +22,8 @@ export function Board({
   epoch,
   connected,
   maxDrawings,
+  viewportRef,
+  pendingMoves = {},
 }: {
   room: View;
   selected: readonly string[];
@@ -31,6 +35,8 @@ export function Board({
   epoch: number;
   connected: boolean;
   maxDrawings?: number;
+  viewportRef?: RefObject<BoardView | null>;
+  pendingMoves?: Record<string, { x: number; y: number }>;
 }) {
   const selection = new Set(selected);
   const map = room.maps.find((m) => m.id === room.currentMapId);
@@ -95,7 +101,8 @@ export function Board({
     setPreview(null);
     setLine(null);
     setSelectedDrawing(null);
-  }, [epoch, connected, tool]);
+    actions.clearMoves?.();
+  }, [epoch, connected, tool, room.currentMapId]);
   useEffect(() => {
     if (!fitted.current) {
       fitted.current = true;
@@ -105,6 +112,35 @@ export function Board({
     // Fit is an explicit user action; ordinary snapshots must not reset the camera.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitSignal]);
+  const placement = useRef({ view: '', index: 0 });
+  useEffect(() => {
+    if (!viewportRef) return;
+    viewportRef.current = {
+      placement: () => {
+        const camera = cameraRef.current;
+        const view = JSON.stringify([camera, size, room.currentMapId, epoch]);
+        if (placement.current.view !== view) placement.current = { view, index: 0 };
+        return visibleWorldPlacement(camera, size.width, size.height, placement.current.index++);
+      },
+      locate: (p) =>
+        setCamera((c) => ({
+          ...c,
+          x: p.x - size.width / (2 * c.scale),
+          y: p.y - size.height / (2 * c.scale),
+        })),
+    };
+    return () => {
+      viewportRef.current = null;
+    };
+  }, [viewportRef, size, room.currentMapId, epoch]);
+  useEffect(() => {
+    const id = drag.current?.id ?? preview?.id;
+    if (id && !room.tokens.some((t) => t.id === id && !t.hidden)) {
+      drag.current = null;
+      setPreview(null);
+    }
+  }, [room.tokens]);
+  useEffect(() => () => actions.clearMoves?.(), [actions]);
   function point(e: { clientX: number; clientY: number }) {
     const box = svg.current!.getBoundingClientRect(),
       c = cameraRef.current;
@@ -144,7 +180,8 @@ export function Board({
     }
     const p = point(e);
     setSelectedDrawing(null);
-    const t = room.tokens.find((t) => t.id === id);
+    const t = room.tokens.find((t) => t.id === id && !t.hidden);
+    const origin = t ? (pendingMoves[t.id] ?? t) : undefined;
     if (e.button !== 0 || (tool === 'move' && !t)) {
       drag.current = {
         kind: 'pan',
@@ -165,12 +202,12 @@ export function Board({
         kind: 'token',
         id: t.id,
         start: p,
-        origin: { x: t.x, y: t.y },
-        last: { x: t.x, y: t.y },
+        origin: { x: origin!.x, y: origin!.y },
+        last: { x: origin!.x, y: origin!.y },
         sent: 0,
         epoch,
       };
-      setPreview({ id: t.id, x: t.x, y: t.y });
+      setPreview({ id: t.id, x: origin!.x, y: origin!.y });
     }
   }
   function moving(e: React.PointerEvent) {
@@ -221,6 +258,7 @@ export function Board({
     }
   }
   function end(e: React.PointerEvent) {
+    if (e.type === 'pointercancel') actions.clearMoves?.();
     touches.current.delete(e.pointerId);
     if (pinch.current) {
       if (touches.current.size < 2) pinch.current = null;
@@ -249,7 +287,7 @@ export function Board({
           color: drawColor,
         });
     }
-    if (d?.kind === 'token' && d.epoch === epoch && connected)
+    if (e.type !== 'pointercancel' && d?.kind === 'token' && d.epoch === epoch && connected)
       actions.move(d.id!, d.last.x, d.last.y, true);
     drag.current = null;
     setPreview(null);
@@ -273,12 +311,17 @@ export function Board({
     node.addEventListener('wheel', wheel, { passive: false });
     return () => node.removeEventListener('wheel', wheel);
   }, []);
-  const sorted = [...room.tokens].sort(
-    (a, b) => (selection.has(a.id) ? 1 : 0) - (selection.has(b.id) ? 1 : 0),
-  );
+  const sorted = room.tokens
+    .filter((t) => !t.hidden)
+    .sort((a, b) => (selection.has(a.id) ? 1 : 0) - (selection.has(b.id) ? 1 : 0));
   const selectedToken =
-    selected.length === 1 ? room.tokens.find((t) => t.id === selected[0]) : undefined;
-  const selectedPosition = preview?.id === selectedToken?.id ? preview : selectedToken;
+    selected.length === 1 ? room.tokens.find((t) => t.id === selected[0] && !t.hidden) : undefined;
+  const selectedPosition =
+    preview?.id === selectedToken?.id
+      ? preview
+      : selectedToken
+        ? (pendingMoves[selectedToken.id] ?? selectedToken)
+        : undefined;
   return (
     <div ref={host} className={`board ${tool}`}>
       <div className="board-zoom" aria-label="相机缩放">
@@ -419,7 +462,7 @@ export function Board({
           </g>
         ))}
         {sorted.map((t) => {
-          const p = preview?.id === t.id ? preview : t,
+          const p = preview?.id === t.id ? preview : (pendingMoves[t.id] ?? t),
             s = t.size * room.grid.cell;
           return (
             <g
@@ -478,10 +521,27 @@ export function Board({
                 <text
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fontSize={Math.max(1, s * 0.34)}
+                  fontSize={Math.max(1, s * Math.min(0.34, 0.8 / Array.from(t.label).length))}
+                  fontWeight="bold"
                   fill="#fff"
                   stroke="#000"
                   strokeWidth={s * 0.006}
+                  paintOrder="stroke"
+                  pointerEvents="none"
+                >
+                  {t.label}
+                </text>
+              )}
+              {t.asset && (
+                <text
+                  y={s * 0.32}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fontWeight="bold"
+                  fontSize={s * Math.min(0.28, 0.8 / Array.from(t.label).length)}
+                  fill="white"
+                  stroke="black"
+                  strokeWidth={s * 0.025}
                   paintOrder="stroke"
                   pointerEvents="none"
                 >

@@ -23,7 +23,8 @@ test('batch deletion schema bounds, empty, malformed and duplicate IDs', () => {
   const parse = (ids: string[], epoch = 0) =>
     schema.safeParse({ type: 'delete.many', ids, epoch }).success;
   assert.ok(parse([a, b]));
-  for (const ids of [[], [a, a], ['bad'], [a, b, randomUUID()]]) assert.ok(!parse(ids));
+  for (const ids of [[], [a, a], ['bad'], Array.from({ length: 29 }, () => randomUUID())])
+    assert.ok(!parse(ids));
   assert.ok(!parse([a], -1));
 });
 test('batch deletion commits once; shared assets, player privacy, stale epoch, missing IDs and late movement', async () => {
@@ -42,7 +43,7 @@ test('batch deletion commits once; shared assets, player privacy, stale epoch, m
     });
     assert.equal(response.status, 200);
     const image = await response.json();
-    const original = { ...token(), asset: image.asset, note: 'initial', label: 'guard' };
+    const original = { ...token(), asset: image.asset, note: 'initial', label: '守卫' };
     const copies = [
       original,
       { ...original, id: randomUUID(), x: 24 },

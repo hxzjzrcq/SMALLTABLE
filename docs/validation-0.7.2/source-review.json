@@ -1,0 +1,9 @@
+{
+  "baselineFile": "SMALLTABLE-0.7.1-完整源码.zip",
+  "baselineSHA256": "70a0ce8b1fbe19a79a50478f5195801b78828b8a6c4caf28cfc9225571b3ddcb",
+  "coreChangedFiles": [],
+  "coreMissingFiles": [],
+  "dependenciesUnchanged": true,
+  "dependencyLockEntriesUnchanged": true,
+  "cmdCRLF": true
+}

@@ -1,28 +1,31 @@
 # 当前配置与限额
 
-适用于 SMALLTABLE 0.6.5。启动时读取工作目录的 `smalltable.config.json`；也可用 `SMALLTABLE_CONFIG` 指定路径。默认路径缺失时使用默认值；显式指定路径但文件缺失、JSON 损坏或配置非法则拒绝启动。没有热更新，修改后重启生效。
+适用于 SMALLTABLE 0.7.2。启动时读取工作目录的 `smalltable.config.json`；也可用 `SMALLTABLE_CONFIG` 指定路径。默认路径缺失时使用默认值；显式指定路径但文件缺失、JSON 损坏或配置非法则拒绝启动。没有热更新，修改后重启生效。
 
-默认值的代码权威位置是 `src/shared/limits.ts`。随包 JSON 为完整默认示例，可只保留需要覆盖的部分；未写字段使用默认值。根对象和每个分组均拒绝未知字段；所有值必须是正安全整数，不接受数字字符串、零、负数或小数。拒绝计算后的预算或时间、棋子像素预算超出安全整数范围的配置。各项独立，无旧 15／255 隐藏硬上限；增加限额会增加内存、处理与广播成本，部署者需按自己的硬件验证承载能力。
+默认值的代码权威位置是 `src/shared/limits.ts`。随包 JSON 为完整默认示例，可只保留需要覆盖的部分；未写字段使用默认值。根对象和每个分组均拒绝未知字段；所有值必须是正安全整数，不接受数字字符串、零、负数或小数。拒绝计算后的预算、时间、棋子像素预算或普通与 DM 席位之和超出安全整数范围的配置。各项独立，无旧 15／255 隐藏硬上限；增加限额会增加内存、处理与广播成本，部署者需按自己的硬件验证承载能力。
 
-| JSON 路径                |   默认值 | API / 快照 caps 字段 |
-| ------------------------ | -------: | -------------------- |
-| limits.maps              |       10 | maxMaps              |
-| limits.music             |       10 | maxMusic             |
-| resources.totalBytes     | 67108864 | resourceBytes        |
-| resources.musicBytes     |  4194304 | musicBytes           |
-| limits.players           |       15 | maxSeats             |
-| limits.tokens            |      255 | maxTokens            |
-| limits.privateNotesBytes |    65535 | maxNotesBytes        |
-| limits.initiativeEntries |      255 | maxInitiative        |
-| limits.drawings          |      255 | maxDrawings          |
-| limits.rollHistory       |      255 | maxRolls             |
-| limits.names             |      255 | maxNames             |
-| images.mapBytes          | 10485760 | mapBytes             |
-| images.mapPixels         | 16000000 | mapPixels            |
-| images.mapEdge           |     8192 | mapEdge              |
-| images.tokenBytes        |   262144 | tokenBytes           |
-| images.tokenEdge         |      256 | tokenEdge            |
-| session.idleMinutes      |       30 | idleMs（转换为毫秒） |
+| JSON 路径                |   默认值 | API / 快照 caps 字段   |
+| ------------------------ | -------: | ---------------------- |
+| limits.maps              |       10 | maxMaps                |
+| limits.music             |       10 | maxMusic               |
+| resources.totalBytes     | 67108864 | resourceBytes          |
+| resources.musicBytes     |  4194304 | musicBytes             |
+| limits.players           |       15 | maxSeats（仅普通玩家） |
+| limits.dms               |        1 | maxDMs                 |
+| limits.tokens            |      255 | maxTokens（普通池）    |
+| limits.privateNotesBytes |    65535 | maxNotesBytes          |
+| limits.initiativeEntries |      255 | maxInitiative          |
+| limits.drawings          |      255 | maxDrawings            |
+| limits.rollHistory       |      255 | maxRolls               |
+| limits.names             |      255 | maxNames               |
+| images.mapBytes          | 10485760 | mapBytes               |
+| images.mapPixels         | 16000000 | mapPixels              |
+| images.mapEdge           |     8192 | mapEdge                |
+| images.tokenBytes        |   262144 | tokenBytes             |
+| images.tokenEdge         |      256 | tokenEdge              |
+| session.idleMinutes      |       30 | idleMs（废弃兼容值）   |
+
+公共池固定额外 26 枚，不以 maxTokens 代替总上限。`session.idleMinutes` 和 caps.idleMs 仅为接受旧部署配置保留，0.7.2 不再用于在线或离线过期；断线恢复期限固定 45 分钟。新配置可省略 session 分组。
 
 `limits.names` 是显示名称的条目数；每个名称仍遵守原有 128 个 UTF-8 字节规则。棋子名称、注释与表达式保留现有限制。棋子中心、画线端点和网格偏移的 X/Y 为 ±32768，允许有限小数；先攻、骰点和角度不受这个空间限制。私人笔记按 UTF-8 字节计算，中文通常占多个字节。已有笔记即使超过降低后的限额也可读取、复制和导出，写入仍按当前限额检查；配置尚未取得时笔记只读。
 
@@ -30,9 +33,8 @@
 
 ```json
 {
-  "limits": { "players": 20, "tokens": 300, "privateNotesBytes": 100000 },
-  "images": { "tokenEdge": 512 },
-  "session": { "idleMinutes": 45 }
+  "limits": { "players": 20, "dms": 1, "tokens": 300, "privateNotesBytes": 100000 },
+  "images": { "tokenEdge": 512 }
 }
 ```
 
@@ -57,19 +59,15 @@
 
 先停止旧服务，把已有值原样转入 JSON，再从 `.env`、容器或服务管理器中移除对应变量。0.6.0 检测到这些变量时拒绝启动并指出迁移目标，不静默忽略已有设置，也不保留两套覆盖优先级。
 
-| 旧变量               | JSON 路径           |
-| -------------------- | ------------------- |
-| MAX_SEATS            | limits.maps         | 10            | maxMaps |
-| limits.music         | 10                  | maxMusic      |
-| resources.totalBytes | 67108864            | resourceBytes |
-| resources.musicBytes | 4194304             | musicBytes    |
-| limits.players       |
-| IDLE_MINUTES         | session.idleMinutes |
-| MAP_BYTES            | images.mapBytes     |
-| MAP_PIXELS           | images.mapPixels    |
-| MAP_EDGE             | images.mapEdge      |
-| TOKEN_BYTES          | images.tokenBytes   |
-| TOKEN_EDGE           | images.tokenEdge    |
+| 旧变量       | JSON 路径           |
+| ------------ | ------------------- |
+| MAX_SEATS    | limits.players      |
+| IDLE_MINUTES | session.idleMinutes |
+| MAP_BYTES    | images.mapBytes     |
+| MAP_PIXELS   | images.mapPixels    |
+| MAP_EDGE     | images.mapEdge      |
+| TOKEN_BYTES  | images.tokenBytes   |
+| TOKEN_EDGE   | images.tokenEdge    |
 
 升级其它注意事项见 [0.6.0 升级](UPGRADE-0.6.0.md)。
 
@@ -80,3 +78,5 @@
 棋子图片暂存固定 10 分钟，无配置项。未绑定暂存文件占额度；取消编辑释放对应暂存，过期由维护任务清理。清理失败仍按实际文件占容量，后续维护会再尝试。生命周期详见 [架构](ARCHITECTURE.md#资源与持久化)。
 
 备份的最大条目数为 `maxTokens + maxMaps + 1`；room.json 大小预算包含全部地图条目，资源与 ZIP 开销共同形成上传/展开上限。音乐不进入房间 ZIP。恢复使用候选图片、现有音乐和有效暂存计量，旧房间独占且将解除引用的图片不重复计算；恢复暂存不是正式容量，允许短时额外占用。
+
+`maxSeats` 仅指普通玩家上限，`maxDMs` 指独立 DM 上限；未写 dms 时默认 1。人数只显示实际在线连接，握手占位参与容量校验但不列为在线。会话期限和席位生命周期统一见 [安全](SECURITY.md#会话与席位)。

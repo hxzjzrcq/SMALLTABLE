@@ -1,0 +1,3 @@
+src/server/app.ts(348,11): error TS6133: 'res' is declared but its value is never read.
+src/server/app.ts(398,11): error TS6133: 'res' is declared but its value is never read.
+src/server/app.ts(478,11): error TS6133: 'res' is declared but its value is never read.

@@ -20,19 +20,14 @@ test('every schema command has one explicit rule; unknown commands are denied ev
     'initiative.order',
     'drawing.add',
     'drawing.delete',
+    'delete',
+    'delete.many',
+    'public.take',
+    'token.label',
   ]) {
     assert.equal(canCommand({ dm: false }, action), true, action);
   }
-  for (const action of [
-    'drawing.clear',
-    'create',
-    'edit',
-    'delete',
-    'delete.many',
-    'clear',
-    'grid',
-    'names',
-  ]) {
+  for (const action of ['drawing.clear', 'create', 'edit', 'clear', 'grid', 'names']) {
     assert.equal(canCommand({ dm: false }, action), false, action);
     assert.equal(canCommand({ dm: true }, action), true, action);
   }
@@ -44,6 +39,9 @@ test('HTTP permission inventory preserves public/session/DM routes', () => {
   assert.deepEqual(HTTP_PERMISSIONS, {
     'GET /api/config': 'public',
     'POST /api/login': 'public',
+    'POST /api/logout': 'public',
+    'GET /api/session': 'session',
+    'POST /api/session': 'session',
     'GET /media/:id': 'session',
     'GET /audio/:id': 'session',
     'POST /api/music': 'dm',

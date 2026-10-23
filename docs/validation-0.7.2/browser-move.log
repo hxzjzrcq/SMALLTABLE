@@ -1,0 +1,5 @@
+PASS 1: matching ack ends preview; later other-player authoritative move wins over older acknowledgement
+PASS 2: rapid repeat drag ignores an old ack and keeps the newest preview
+PASS 3: lost ack times out to latest authority after 2s; diagnostic whitelist and clipboard fallback work
+PASS 4: hide during an active pointer drag immediately removes all graphics/controls; late messages do not revive it
+{"checks":4,"browser":"141.0.7390.37","faults":"ack delay/drop injected with WS route; real server, real pointers, real other player moves"}

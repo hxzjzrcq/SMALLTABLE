@@ -1,0 +1,8 @@
+HTTP 401 http://127.0.0.1:5173/api/session {"code":"EXPIRED","error":"请重新输入房间密码"}
+PASS: actual Vite 5173 music upload, Cookie-authenticated audio proxy and native playback
+PASS: three failed automatic retries preserve desktop, initiative draft and live iframe; manual retry available
+PASS: manual recovery restores authoritative DM state without remounting iframe or initiative
+HTTP 409 http://127.0.0.1:5173/api/session {"code":"PLAYER_FULL","error":"房间人数已满"}
+HTTP 409 http://127.0.0.1:5173/api/session {"code":"ID_CONFLICT","error":"ID occupied"}
+PASS: injected full/conflict recovery responses retain desktop only for full; conflict requests new ID and removes stale retry
+PASS: explicit logout unmounts desktop; no uncaught browser errors

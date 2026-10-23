@@ -82,6 +82,7 @@ test('render budget: 25 position events do not execute unrelated memoized panels
   const token = {
     id: randomUUID(),
     name: 'A',
+    hidden: false,
     label: '1',
     shape: 'circle' as const,
     color: '#123456',
@@ -99,7 +100,7 @@ test('render budget: 25 position events do not execute unrelated memoized panels
   try {
     await act(async () => root.render(createElement(App)));
     await act(async () => {
-      await smalltable.join('room');
+      await smalltable.join('room', 'Test');
       socket!.onopen?.();
     });
     await receive({ type: 'snapshot', room, epoch: 0, dm: true, caps: DEFAULT_CAPABILITIES });

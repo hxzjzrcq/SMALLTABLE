@@ -1,17 +1,18 @@
+import { DEFAULT_CAPABILITIES } from '../src/shared/limits';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { initialRoom } from '../src/shared/model';
-import { roomPassword, dmPassword, fixture } from './support/management-fixture';
+import { dmPassword, fixture } from './support/management-fixture';
 
 for (const revoke of ['lock', 'disconnect', 'password'] as const)
   test(
     `queued HTTP and WS management is rejected after ${revoke} revocation`,
     { timeout: 15000 },
     async () => {
-      const f = await fixture();
+      const f = await fixture({ ...DEFAULT_CAPABILITIES, maxDMs: 2 });
       let release!: () => void;
       const gate = new Promise<void>((r) => (release = r));
       let entered!: () => void;
@@ -119,6 +120,7 @@ for (const revoke of ['lock', 'disconnect', 'password'] as const)
         a.send({ type: 'music.delete', id: '00000000-0000-4000-8000-000000000001' });
         a.send({ type: 'delete.many', ids: ['00000000-0000-4000-8000-000000000001'], epoch: 0 });
         a.send({ type: 'clear' });
+        a.send({ type: 'player.kick', target: '00000000-0000-4000-8000-000000000001' });
         const pong = once(a.ws, 'pong');
         a.ws.ping();
         await pong;
@@ -137,11 +139,11 @@ for (const revoke of ['lock', 'disconnect', 'password'] as const)
             a.events
               .slice(managementMark)
               .filter((e) => e.type === 'error' && e.message === '操作未授权');
-          await a.until((e) => e.type === 'error' && denied().length === 9, managementMark);
+          await a.until((e) => e.type === 'error' && denied().length === 10, managementMark);
           assert.equal(
             denied().length,
-            9,
-            'all nine queued commands must reach authorization rejection',
+            10,
+            'all ten queued commands must reach authorization rejection',
           );
         }
         assert.deepEqual(f.service.getRoom(), before);

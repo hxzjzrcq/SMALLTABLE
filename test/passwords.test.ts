@@ -1,3 +1,5 @@
+import { sessionBody } from './helpers';
+let loginSequence068 = 0;
 import { waitEvent } from './helpers';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -120,7 +122,7 @@ test('initialization fails closed; independent salted credentials persist; reset
 
 async function setup() {
   const dir = await directory();
-  const cfg = { ...config(), dataDir: dir };
+  const cfg = { ...config(), caps: { ...config().caps, maxDMs: 2 }, dataDir: dir };
   let service = await createSmalltable(cfg, { roomPassword, dmPassword });
   const sockets: WebSocket[] = [];
   async function listen() {
@@ -132,12 +134,12 @@ async function setup() {
     fetch(url + '/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ password, name: 'U' + ++loginSequence068 }),
     });
   async function peer(password = roomPassword) {
     const response = await login(password);
     assert.equal(response.status, 200);
-    const { token } = await response.json();
+    const { token } = await sessionBody(response);
     const ws = new WebSocket(url.replace('http', 'ws') + '/ws', ['tabletop', token]);
     sockets.push(ws);
     const events: ServerEvent[] = [];
@@ -205,6 +207,7 @@ test('HTTP authorization, fresh DM verification, strict request shape, validatio
     await p.unlock();
     for (const body of [
       { currentDMPassword: 'wrong', dmPassword: nextDM },
+      { currentDMPassword: 'wrong-again', dmPassword: nextDM },
       { currentDMPassword: dmPassword },
       { currentDMPassword: dmPassword, roomPassword: nextRoom, dmPassword: 'Password1!' },
       { currentDMPassword: dmPassword, roomPassword: nextRoom, extra: 'not-allowed' },
@@ -258,9 +261,14 @@ test('DM rotation revokes all DM privileges; room rotation disconnects all and i
     await a.wait((e) => e.type === 'error' && e.message.includes('密码错误'), mark);
     await a.unlock(nextDM);
     await s.restart();
+    assert.equal(
+      (await fetch(s.url + '/api/health', { headers: { Authorization: 'Bearer ' + a.token } }))
+        .status,
+      401,
+    );
     const dm = await s.peer();
     await dm.unlock(nextDM);
-    const pending = await (await s.login(roomPassword)).json();
+    const pending = await sessionBody(await s.login(roomPassword));
     const closeA = once(dm.ws, 'close');
     const viewer = await s.peer();
     const closeB = once(viewer.ws, 'close');

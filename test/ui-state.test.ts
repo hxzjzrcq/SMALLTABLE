@@ -1,4 +1,4 @@
-import { createDom, installDomGlobals } from './environment';
+import { createDom, installDomGlobals, inputValue } from './environment';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { act, createElement } from 'react';
@@ -55,6 +55,7 @@ test('live room updates preserve drafts and scroll, refresh visible data, and re
   const token = {
     id: randomUUID(),
     name: 'A',
+    hidden: false,
     label: '1',
     shape: 'circle' as const,
     color: '#123456',
@@ -79,20 +80,10 @@ test('live room updates preserve drafts and scroll, refresh visible data, and re
   async function receive(event: ServerEvent) {
     await act(async () => socket!.onmessage?.({ data: JSON.stringify(event) }));
   }
-  async function input(node: HTMLInputElement | HTMLTextAreaElement, value: string) {
-    await act(async () => {
-      const proto =
-        node.tagName === 'TEXTAREA'
-          ? dom.window.HTMLTextAreaElement.prototype
-          : dom.window.HTMLInputElement.prototype;
-      Object.getOwnPropertyDescriptor(proto, 'value')!.set!.call(node, value);
-      node.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
-    });
-  }
   try {
     await act(async () => root.render(createElement(App)));
     await act(async () => {
-      await smalltable.join('room');
+      await smalltable.join('room', 'Test');
       socket!.onopen?.();
     });
     await receive({ type: 'snapshot', room, epoch: 0, dm: true, caps: DEFAULT_CAPABILITIES });
@@ -114,18 +105,18 @@ test('live room updates preserve drafts and scroll, refresh visible data, and re
     const expression = document.querySelector<HTMLInputElement>('[aria-label="骰子表达式"]')!;
     const notes = document.querySelector<HTMLTextAreaElement>('[aria-label="私人笔记"]')!;
     const initiativeName = document.querySelector<HTMLInputElement>('[aria-label="先攻名字"]')!;
-    await input(expression, '2d8+3');
-    await input(notes, '私人草稿');
-    await input(initiativeName, '未提交');
+    await inputValue(expression, '2d8+3');
+    await inputValue(notes, '私人草稿');
+    await inputValue(initiativeName, '未提交');
     const passwordDraft = document.querySelector<HTMLInputElement>('.password-settings input')!;
-    await input(passwordDraft, 'Keeper-Draft-060');
+    await inputValue(passwordDraft, 'Keeper-Draft-060');
     const sidebar = document.querySelector<HTMLElement>('.sidebar-content')!;
     sidebar.scrollTop = 123;
     await act(async () => document.querySelector<HTMLButtonElement>('.token-list button')!.click());
     const noteDraft = document.querySelector<HTMLTextAreaElement>('.inspector textarea')!;
     const nameDraft = document.querySelector<HTMLInputElement>('.inspector input')!;
-    await input(noteDraft, '未提交备注');
-    await input(nameDraft, '未提交名称');
+    await inputValue(noteDraft, '未提交备注');
+    await inputValue(nameDraft, '未提交名称');
     for (let i = 1; i <= 25; i++)
       await receive({ type: 'token', token: { ...token, x: i }, epoch: 0, revision: i });
     assert.equal(expression.value, '2d8+3');
@@ -210,6 +201,28 @@ test('live room updates preserve drafts and scroll, refresh visible data, and re
     assert.equal(notes.value, '私人草稿');
     assert.equal(initiativeName.value, '未提交');
     assert.equal(sidebar.scrollTop, 123);
+    await act(async () =>
+      [...document.querySelectorAll('button')].find((b) => b.textContent === '属性工具')!.click(),
+    );
+    const frameBefore = document.querySelector('iframe');
+    assert.ok(frameBefore);
+    const appBefore = document.querySelector('.app');
+    await act(async () => socket!.onclose?.({ code: 1006, reason: '' }));
+    assert.equal(document.querySelector('.app'), appBefore);
+    assert.equal(document.querySelector('iframe'), frameBefore);
+    assert.equal(document.querySelector('[aria-label="先攻名字"]'), initiativeName);
+    assert.equal(initiativeName.value, '未提交');
+    assert.equal(expression.value, '2d8+3');
+    assert.equal(document.querySelector('.password-settings'), null);
+    assert.ok(!JSON.stringify(smalltable.getSnapshot().room).includes('private-render-secret'));
+    assert.ok(document.querySelector('.board-token'));
+    await act(async () => {
+      await smalltable.retry();
+      socket!.onopen?.();
+    });
+    await receive({ type: 'snapshot', room: next, epoch: 0, dm: true });
+    assert.equal(document.querySelector('iframe'), frameBefore);
+    assert.equal(initiativeName.value, '未提交');
     // Existing close behavior remains: initiative drafts disappear, saved rows survive reopening.
     await act(async () =>
       document.querySelector<HTMLButtonElement>('[aria-label="隐藏先攻盘"]')!.click(),
@@ -237,7 +250,7 @@ test('live room updates preserve drafts and scroll, refresh visible data, and re
     await receive({ type: 'snapshot', room: next, epoch: 0, dm: true });
     const freshPassword = document.querySelector<HTMLInputElement>('.password-settings input')!;
     assert.equal(freshPassword.value, '');
-    await input(freshPassword, 'another-draft');
+    await inputValue(freshPassword, 'another-draft');
     await act(async () => socket!.onclose?.({ code: 4001, reason: 'idle' }));
     assert.equal(document.querySelector('.password-settings'), null);
     assert.ok(!JSON.stringify(smalltable.getSnapshot().room).includes('private-render-secret'));

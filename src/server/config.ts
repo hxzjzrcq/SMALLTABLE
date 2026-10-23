@@ -9,6 +9,7 @@ const settingsSchema = z
     limits: z
       .object({
         players: positive.optional(),
+        dms: positive.optional(),
         maps: positive.optional(),
         music: positive.optional(),
         tokens: positive.optional(),
@@ -41,7 +42,7 @@ const settingsSchema = z
 export function backupLimits(caps: Capabilities) {
   const roomBytes =
     4096 +
-    caps.maxTokens * 65536 +
+    (caps.maxTokens + 26) * 65536 +
     caps.maxRolls * 65536 +
     caps.maxNames * 1024 +
     caps.maxInitiative * 2048 +
@@ -53,9 +54,15 @@ export function backupLimits(caps: Capabilities) {
     contentBytes + Math.ceil(contentBytes / 1000) + (caps.maxTokens + caps.maxMaps + 1) * 512;
   const entries = caps.maxTokens + caps.maxMaps + 1;
   if (
-    ![roomBytes, bytes, entries, caps.idleMs, caps.tokenEdge ** 2, caps.maxMusic * 8192].every(
-      Number.isSafeInteger,
-    )
+    ![
+      roomBytes,
+      bytes,
+      entries,
+      caps.idleMs,
+      caps.tokenEdge ** 2,
+      caps.maxMusic * 8192,
+      caps.maxSeats + caps.maxDMs,
+    ].every(Number.isSafeInteger)
   )
     throw Error('配置过大，派生预算超出安全整数范围');
   return { bytes, entries, roomBytes };
@@ -95,6 +102,7 @@ function loadConfig(file: string) {
   const caps: Capabilities = { ...DEFAULT_CAPABILITIES, ...images };
   const keys = {
     players: 'maxSeats',
+    dms: 'maxDMs',
     maps: 'maxMaps',
     music: 'maxMusic',
     tokens: 'maxTokens',

@@ -43,6 +43,7 @@ export class Storage {
       )
         return null;
       logEvent('storage.load_failed', { error: e });
+      if (e instanceof Error && e.message.startsWith('不兼容的房间 schema')) throw e;
       throw Error('存档损坏，拒绝覆盖；请恢复备份', { cause: e });
     }
   }

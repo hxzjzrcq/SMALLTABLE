@@ -1,4 +1,4 @@
-import { createDom, installDomGlobals } from './environment';
+import { createDom, installDomGlobals, inputValue } from './environment';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { act, createElement } from 'react';
@@ -22,14 +22,7 @@ test('password form requires confirmation, supports separate fields and clears s
     },
   } as unknown as SmalltableClient;
   const inputs = () => [...document.querySelectorAll('input')];
-  const fill = async (index: number, value: string) =>
-    act(async () => {
-      Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')!.set!.call(
-        inputs()[index],
-        value,
-      );
-      inputs()[index].dispatchEvent(new dom.window.Event('input', { bubbles: true }));
-    });
+  const fill = (index: number, value: string) => inputValue(inputs()[index], value);
   const submit = async () =>
     act(async () => {
       document

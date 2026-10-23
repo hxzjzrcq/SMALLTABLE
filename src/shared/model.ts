@@ -1,17 +1,36 @@
 import { z } from 'zod';
+import { rollReason } from './roll-input.js';
 import { DEFAULT_CAPABILITIES, type Capabilities } from './limits.js';
 export type { Capabilities } from './limits.js';
-export const SCHEMA_VERSION = 3 as const;
+export const SCHEMA_VERSION = 4 as const;
 export const bytes = (s: string) => new TextEncoder().encode(s).length;
 export const text = (max: number) => z.string().refine((s) => bytes(s) <= max, '文字超过字节上限');
 export const WORLD_LIMIT = 32768;
 export const coordinate = z.number().finite().min(-WORLD_LIMIT).max(WORLD_LIMIT);
 export const assetId = z.string().regex(/^[a-f0-9]{64}\.webp$/);
+export const PUBLIC_LETTERS = Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+export const publicIdentity = z.string().regex(/^[A-Z]$/);
+export const tokenLabel = z
+  .string()
+  .refine((value) => !/[\p{Cc}\p{Zl}\p{Zp}]/u.test(value), '不能含换行或控制字符')
+  .trim()
+  .refine(
+    (value) => Array.from(value).length >= 1 && Array.from(value).length <= 4,
+    '棋面文字须为 1–4 个字符，不能含换行或控制字符',
+  );
+export function nextLabel(tokens: { label: string }[]) {
+  const used = new Set(tokens.map((t) => t.label));
+  for (let n = 1; n <= 9999; n++) if (!used.has(String(n))) return String(n);
+  for (let n = 0; n < 36 ** 4; n++) if (!used.has(n.toString(36))) return n.toString(36);
+  return '棋子';
+}
 export const tokenSchema = z
   .object({
     id: z.string().uuid(),
     name: text(128),
-    label: text(32),
+    label: tokenLabel,
+    publicId: publicIdentity.optional(),
+    hidden: z.boolean().default(false),
     shape: z.enum(['circle', 'square']),
     color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
     x: coordinate,
@@ -25,7 +44,20 @@ export const tokenSchema = z
     note: text(4096),
     secret: text(4096),
   })
-  .strict();
+  .strict()
+  .refine(
+    (t) =>
+      !t.publicId ||
+      (!t.hidden &&
+        t.asset === null &&
+        t.shape === 'circle' &&
+        t.color === '#3872a4' &&
+        t.size === 1 &&
+        t.name === '' &&
+        t.note === '' &&
+        t.secret === ''),
+    '公共棋子状态无效',
+  );
 export type Token = z.infer<typeof tokenSchema>;
 export type PublicToken = Omit<Token, 'secret'> & { secret?: string };
 export const gridSchema = z
@@ -47,6 +79,7 @@ export const rollSchema = z
     id: z.string().uuid(),
     name: text(128),
     expression: z.string().max(128),
+    reason: rollReason.optional(),
     dice: z
       .array(
         z
@@ -109,7 +142,16 @@ export const createRoomSchema = (caps: Capabilities) =>
         .max(caps.maxMaps),
       currentMapId: z.string().uuid().nullable(),
       grid: gridSchema,
-      tokens: z.array(tokenSchema).max(caps.maxTokens),
+      tokens: z
+        .array(tokenSchema)
+        .max(caps.maxTokens + 26)
+        .refine((ts) => ts.filter((t) => !t.publicId).length <= caps.maxTokens, '普通棋子池已满')
+        .refine(
+          (ts) =>
+            new Set(ts.filter((t) => t.publicId).map((t) => t.publicId)).size ===
+            ts.filter((t) => t.publicId).length,
+          '公共身份重复',
+        ),
       names: z.array(text(128)).min(1).max(caps.maxNames),
       rolls: z.array(rollSchema).max(caps.maxRolls),
       initiative: z.array(initiativeEntrySchema).max(caps.maxInitiative),
@@ -137,7 +179,7 @@ export function parseRoom(input: unknown, caps: Capabilities = DEFAULT_CAPABILIT
     !('schemaVersion' in input) ||
     input.schemaVersion !== SCHEMA_VERSION
   )
-    throw Error('不兼容的房间 schema，要求版本 3；不执行迁移');
+    throw Error('不兼容的房间 schema，要求版本 4；不执行迁移');
   return createRoomSchema(caps).parse(input);
 }
 export type Room = z.infer<typeof roomSchema>;
@@ -168,6 +210,31 @@ export const measure = (a: { x: number; y: number }, b: { x: number; y: number }
   Math.round(Math.hypot(b.x - a.x, b.y - a.y) / cell);
 export const createCommandSchema = (caps: Capabilities) =>
   z.discriminatedUnion('type', [
+    z
+      .object({
+        type: z.literal('public.take'),
+        publicId: publicIdentity,
+        x: coordinate,
+        y: coordinate,
+        epoch: z.number().int().nonnegative(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal('token.label'),
+        id: z.string().uuid(),
+        label: tokenLabel,
+        epoch: z.number().int().nonnegative(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal('token.hidden'),
+        id: z.string().uuid(),
+        hidden: z.boolean(),
+        epoch: z.number().int().nonnegative(),
+      })
+      .strict(),
     z
       .object({
         type: z.literal('initiative.put'),
@@ -214,12 +281,14 @@ export const createCommandSchema = (caps: Capabilities) =>
     z.object({ type: z.literal('music.stop') }).strict(),
     z.object({ type: z.literal('music.delete'), id: z.string().uuid() }).strict(),
     z.object({ type: z.literal('activity') }),
+    z.object({ type: z.literal('player.kick'), target: z.string().uuid() }).strict(),
     z.object({
       type: z.literal('move'),
       id: z.string().uuid(),
       x: coordinate,
       y: coordinate,
       final: z.boolean(),
+      moveId: z.string().uuid().optional(),
       epoch: z.number().int().nonnegative(),
     }),
     z.object({
@@ -236,7 +305,12 @@ export const createCommandSchema = (caps: Capabilities) =>
         epoch: z.number().int().nonnegative(),
       })
       .strict(),
-    z.object({ type: z.literal('roll'), expression: z.string().max(128), name: text(128) }),
+    z.object({
+      type: z.literal('roll'),
+      expression: z.string().max(128),
+      name: text(128),
+      reason: rollReason.optional(),
+    }),
     z.object({ type: z.literal('unlock'), password: z.string().max(1024) }),
     z.object({ type: z.literal('lock') }),
     z.object({
@@ -256,7 +330,7 @@ export const createCommandSchema = (caps: Capabilities) =>
         ids: z
           .array(z.string().uuid())
           .min(1)
-          .max(caps.maxTokens)
+          .max(caps.maxTokens + 26)
           .refine((ids) => new Set(ids).size === ids.length, '棋子 ID 重复'),
         epoch: z.number().int().nonnegative(),
       })
@@ -271,7 +345,20 @@ export type ServerEvent =
   | { type: 'snapshot'; room: View; dm: boolean; epoch: number; caps?: Capabilities }
   | { type: 'token'; token: PublicToken; revision: number; epoch: number }
   | { type: 'music'; music: import('./music.js').MusicSnapshot; acceptedPushId?: string }
-  | { type: 'presence'; count: number; max: number }
+  | { type: 'presence'; count: number; max: number; dms: number; maxDMs: number }
+  | { type: 'players'; players: import('./session.js').OnlinePlayer[] }
+  | { type: 'activity' }
   | { type: 'saved'; revision: number }
-  | { type: 'error'; message: string }
+  | {
+      type: 'move.ack';
+      id: string;
+      moveId: string;
+      epoch: number;
+      revision: number;
+      ok: boolean;
+      x?: number;
+      y?: number;
+      message?: string;
+    }
+  | { type: 'error'; message: string; code?: string }
   | { type: 'idle'; seconds: number };

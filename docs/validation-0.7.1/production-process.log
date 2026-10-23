@@ -1,0 +1,9 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> smalltable@0.7.1 start
+> node --import tsx src/server/index.ts
+
+{"time":"2026-10-22T15:40:40.769Z","level":"info","event":"process.starting"}
+{"time":"2026-10-22T15:40:41.164Z","level":"info","event":"process.started","message":"SMALLTABLE: service ready","port":31871}
+{"time":"2026-10-22T15:40:41.230Z","level":"info","event":"process.stopping","signal":"SIGTERM"}
+{"time":"2026-10-22T15:40:41.230Z","level":"info","event":"process.stopped"}

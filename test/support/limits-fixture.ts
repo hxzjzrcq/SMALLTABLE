@@ -7,7 +7,8 @@ import { type ServerEvent } from '../../src/shared/model';
 export const token = (asset: string | null = null) => ({
   id: randomUUID(),
   name: 'A',
-  label: '',
+  hidden: false,
+  label: '1',
   shape: 'circle' as const,
   color: '#000000',
   x: 0,

@@ -1,21 +1,26 @@
 {
-  "date": "2026-10-22",
-  "version": "0.6.7",
-  "baselineSHA256": "15e2912d6a38aab00b5798c4e7b9a8087c774b647422fffe21eb000d6e00dddc",
-  "versionsConsistent": true,
-  "roomSchemaVersion": 3,
-  "coreSourceUnchanged": true,
-  "existingHistoricalRecordsUnchanged": true,
+  "date": "2026-10-24",
+  "version": "0.7.3",
+  "baselineSHA256": "e8d86d42cf074c9b9377831f81750d10125ce3bd30d03d693ba68b3f3db5b047",
+  "roomSchemaVersion": 4,
+  "coreFilesUnchanged": true,
   "dependencyVersionsUnchanged": true,
-  "configFileUnchanged": true,
-  "builtHTMLReferencesExist": true,
-  "sourceTestAndArtifactHashesRecorded": true,
-  "excluded": [
-    "node_modules",
-    ".git",
-    ".env",
-    "data",
-    "real credentials",
-    "private backups"
-  ]
+  "dependencyLockEntriesUnchanged": true,
+  "targetedTests": {
+    "passed": 7,
+    "failed": 0
+  },
+  "browserScripts": {
+    "passed": [
+      "browser-placement-073.ts"
+    ]
+  },
+  "fullRoomTestsRun": false,
+  "coreTestsRun": false,
+  "buildPassed": true,
+  "productionOnlyInstallSmokeRun": false,
+  "windowsCmdExecuted": false,
+  "physicalMobileTested": false,
+  "deployed": false,
+  "githubPushed": false
 }

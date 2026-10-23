@@ -1,29 +1,29 @@
+import { launchBrowser, submitLogin } from './support/browser';
+import { DEFAULT_CAPABILITIES } from '../src/shared/limits';
 import assert from 'node:assert/strict';
-import { chromium, type Page } from 'playwright';
-import { fixture, roomPassword, dmPassword, token, drawing } from './support/management-fixture';
+import type { Page } from 'playwright';
+import { fixture, roomPassword, dmPassword } from './support/management-fixture';
 import { readFile } from 'node:fs/promises';
-import { randomUUID } from 'node:crypto';
-import { waitEvent } from './helpers';
-const f = await fixture();
-const browser = await chromium.launch({
-  headless: true,
-  ...(process.env.SMALLTABLE_CHROMIUM ? { executablePath: process.env.SMALLTABLE_CHROMIUM } : {}),
-  args: [
-    '--no-sandbox',
-    '--disable-dev-shm-usage',
-    '--autoplay-policy=user-gesture-required',
-    '--use-gl=angle',
-    '--use-angle=swiftshader',
-    '--enable-unsafe-swiftshader',
-  ],
-});
+const f = await fixture({ ...DEFAULT_CAPABILITIES, maxDMs: 2 });
+const browser = await launchBrowser([
+  '--autoplay-policy=user-gesture-required',
+  '--use-gl=angle',
+  '--use-angle=swiftshader',
+  '--enable-unsafe-swiftshader',
+]);
 async function join(p: Page) {
   await p.goto(f.url);
   await login(p);
 }
+let browserName = 0;
 async function login(p: Page) {
-  await p.locator('#st-login-password').fill(roomPassword);
-  await p.getByRole('button', { name: '进入房间', exact: true }).click();
+  await p.waitForFunction(
+    () =>
+      document.querySelector('.app') ||
+      (document.querySelector('.st-login-submit') as HTMLButtonElement | null)?.disabled === false,
+  );
+  if (await p.locator('.app').count()) return;
+  await submitLogin(p, 'B' + ++browserName, roomPassword);
   await p.getByRole('button', { name: '属性工具', exact: true }).waitFor();
 }
 async function waitText(p: Page, text: string) {
@@ -53,7 +53,6 @@ try {
     });
     assert.equal(res.status, 200);
   }
-  const [a, b] = f.service.music.tracks;
   const contexts = await Promise.all([
     browser.newContext(),
     browser.newContext(),
@@ -205,6 +204,8 @@ try {
   await join(fresh);
   await fresh.getByRole('button', { name: '接受音乐', exact: true }).waitFor();
   await fresh.close();
+  await accept.reload();
+  await login(accept);
   assert.equal(requests.reject, 0);
   // A new accepted push with a deliberately failed HTTP transfer reports a local load failure.
   await accept.route('**/audio/**', (route) => route.abort('failed'));

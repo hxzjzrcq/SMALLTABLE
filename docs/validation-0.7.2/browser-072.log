@@ -1,0 +1,9 @@
+PASS 1: 8 Han / 16 ASCII login, HttpOnly cookie-only authentication, maximum 281 rendered tokens
+PASS 2: PL changes public label, clone quota boundary, DM hide/locate/reveal excludes both desktops
+PASS 3: return resets original identity and label; public take uses panned/scaled viewport center
+PASS 4: ordinary create uses local camera center; actual pointer movement converges with 16 peers / 281 tokens
+PASS 5: native MP3 upload/play; closing music management preserves Audio object/time and PL can refuse
+PASS 6: map and token image / ZIP uploads use real HTTP; 100% processing is separate and repeat submission is disabled
+PASS 7: DM/PL desktop, 390×844 portrait, 844×390 landscape, sidebar open/closed, playback and reconnect layouts
+PASS 8: touch-capable mobile: tap public controls, four-Han label, locate, collapse/reopen and actual touch drag
+{"checks":8,"browser":"141.0.7390.37","uploadMessages":["test.mp3：上传中","test.mp3：上传中 100%","test.mp3：服务器处理中","test.mp3：完成","map.png：上传中","map.png：上传中 100%","map.png：服务器处理中","map.png：完成","token.png：上传中","token.png：上传中 100%","token.png：服务器处理中","token.png：完成","backup.zip：上传中","backup.zip：上传中 100%","backup.zip：服务器处理中","backup.zip：完成"],"scope":"browser simulation, no physical device"}

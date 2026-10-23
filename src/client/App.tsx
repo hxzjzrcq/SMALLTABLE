@@ -1,16 +1,19 @@
+import { PublicBox } from './components/PublicBox';
+import { Diagnostics } from './components/Diagnostics';
 import { selectTokens } from './selection';
 import { installShortcuts } from './shortcuts';
 import { MusicPanel } from './components/MusicPanel';
+import { RecoveryPage } from './components/RecoveryPage';
 import { LoginPage } from './components/LoginPage';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSmalltable } from './useSmalltable';
-import { Board } from './components/Board';
+import { Board, type BoardView } from './components/Board';
 import { Notes } from './components/Notes';
 import { DicePanel } from './components/DicePanel';
 import { Inspector, TokenList } from './components/Inspector';
 import { AbilityTool } from './components/AbilityTool';
 import { InitiativePanel } from './components/InitiativePanel';
-import type { Drawing } from '../shared/model';
+import { nextLabel, type Drawing } from '../shared/model';
 import { DMPanel } from './components/DMPanel';
 export default function App() {
   const state = useSmalltable(),
@@ -25,6 +28,8 @@ export default function App() {
     [tab, setTab] = useState<'dice' | 'tokens' | 'notes' | 'dm'>('dice');
   const closeInitiative = useCallback(() => setInitiativeOpen(false), []);
   const closeAbility = useCallback(() => setAbilityOpen(false), []);
+  const boardView = useRef<BoardView | null>(null);
+  const previousHidden = useRef(new Set<string>());
   const pendingSelection = useRef<string | null>(null);
   const select = useCallback((id: string | null, additive = false) => {
     pendingSelection.current = null;
@@ -36,7 +41,10 @@ export default function App() {
       pendingSelection.current = null;
       setSelectedIds([]);
     } else {
-      const ids = new Set(room?.tokens.map((t) => t.id));
+      const hidden = new Set(room?.tokens.filter((t) => t.hidden).map((t) => t.id));
+      const newlyHidden = new Set([...hidden].filter((id) => !previousHidden.current.has(id)));
+      previousHidden.current = hidden;
+      const ids = new Set(room?.tokens.filter((t) => !newlyHidden.has(t.id)).map((t) => t.id));
       const pending = pendingSelection.current;
       if (pending && ids.has(pending)) {
         pendingSelection.current = null;
@@ -63,6 +71,25 @@ export default function App() {
     },
     [actions],
   );
+  const locate = useCallback(
+    (id: string) => {
+      const t = actions.getSnapshot().room?.tokens.find((t) => t.id === id);
+      if (t) boardView.current?.locate(t);
+    },
+    [actions],
+  );
+  const toggleHidden = useCallback(
+    (id: string, hidden: boolean) => {
+      actions.send({ type: 'token.hidden', id, hidden, epoch: actions.getSnapshot().epoch });
+    },
+    [actions],
+  );
+  const returnToken = useCallback(
+    (id: string) => {
+      if (confirm('归还这枚公共棋子并重置？')) actions.send({ type: 'delete', id });
+    },
+    [actions],
+  );
   const caps = state.caps;
   const connected = connection === 'connected';
   const token = room?.tokens.find((t) => t.id === selected);
@@ -71,7 +98,14 @@ export default function App() {
       installShortcuts(window, [
         {
           key: 'Delete',
-          enabled: () => connected && dm && selectedIds.length > 0 && !abilityOpen,
+          enabled: () =>
+            connected &&
+            selectedIds.length > 0 &&
+            !abilityOpen &&
+            (dm ||
+              selectedIds.every(
+                (id) => room?.tokens.find((t) => t.id === id)?.publicId !== undefined,
+              )),
           run: () => {
             const ids = selectedIds.filter((id) => room?.tokens.some((t) => t.id === id));
             if (ids.length && window.confirm(`删除选中的 ${ids.length} 枚棋子？不可撤销。`))
@@ -81,6 +115,14 @@ export default function App() {
       ]),
     [actions, connected, dm, selectedIds, room?.tokens, abilityOpen],
   );
+  if (!room && state.recovery)
+    return (
+      <RecoveryPage
+        state={state}
+        onRetry={() => void actions.retry()}
+        onLeave={() => void actions.leave()}
+      />
+    );
   if (!room)
     return (
       <LoginPage
@@ -88,25 +130,34 @@ export default function App() {
         connection={connection}
         error={state.error}
         notice={state.notice}
-        onSubmit={(value) => {
-          void actions.join(value);
+        resumable={state.resumable}
+        onRetry={() => void actions.retry()}
+        onLeave={() => void actions.leave()}
+        onSubmit={(value, name) => {
+          void actions.join(value, name);
         }}
         onEdit={actions.dismiss}
       />
     );
+  const ordinaryCount = room.tokens.filter((t) => !t.publicId).length;
   function create() {
     if (!room) return;
+    const position = boardView.current?.placement();
+    if (!position) {
+      actions.reportError('当前视野超出桌面范围，请返回桌面后放置', 'WORLD_BOUNDS');
+      return;
+    }
     const id = crypto.randomUUID();
     const sent = actions.send({
       type: 'create',
       token: {
         id,
         name: '',
-        label: String(room.tokens.length + 1),
+        label: nextLabel(room.tokens),
+        hidden: false,
         shape: 'circle',
         color: '#3872a4',
-        x: room.grid.cell * 2,
-        y: room.grid.cell * 2,
+        ...position,
         size: 1,
         angle: 0,
         asset: null,
@@ -134,7 +185,7 @@ export default function App() {
             }[connection]
           }
           <span>
-            {state.count} / {state.max} 席
+            普通玩家 {state.count} / {state.max} · DM {state.dms} / {state.maxDMs}
           </span>
           {room && <span>{state.savedRevision >= room.revision ? '已保存' : '待保存'}</span>}
         </div>
@@ -146,12 +197,18 @@ export default function App() {
           )}
           {room && <button onClick={() => setAbilityOpen(true)}>属性工具</button>}
           <button onClick={() => window.alert('角色卡管理尚未实装，敬请期待。')}>角色卡管理</button>
+          {!connected && state.resumable && (
+            <button disabled={connection !== 'disconnected'} onClick={() => void actions.retry()}>
+              重试进入
+            </button>
+          )}
           {room && <button onClick={() => actions.leave()}>离开房间</button>}
         </div>
       </header>
       {(state.error || state.notice) && (
         <div className={`message ${state.error ? 'error' : ''}`} role="alert">
           <span>{state.error || state.notice}</span>
+          <Diagnostics actions={actions} code={state.errorCode} />
           <button onClick={actions.dismiss} aria-label="关闭提示">
             ×
           </button>
@@ -211,7 +268,8 @@ export default function App() {
               {panelOpen ? '收起面板' : '展开面板'}
             </button>
             <span className="meta">
-              棋子 {room.tokens.length} / {caps?.maxTokens ?? '—'}
+              普通棋子 {ordinaryCount} / {caps?.maxTokens ?? '—'} · 公共{' '}
+              {room.tokens.length - ordinaryCount} / 26
             </span>
           </div>
         </nav>
@@ -235,6 +293,8 @@ export default function App() {
             />
           )}
           <Board
+            viewportRef={boardView}
+            pendingMoves={state.pendingMoves}
             room={room}
             selected={selectedIds}
             onSelect={select}
@@ -275,16 +335,43 @@ export default function App() {
                 {dm && (
                   <section className="panel">
                     <button
-                      disabled={!connected || !caps || room.tokens.length >= caps.maxTokens}
+                      disabled={!connected || !caps || ordinaryCount >= caps.maxTokens}
                       onClick={create}
                     >
                       ＋ 无图片棋子
                     </button>
                   </section>
                 )}
+                <PublicBox
+                  tokens={room.tokens.filter((t) => t.publicId)}
+                  connected={connected}
+                  onSelect={select}
+                  onLocate={locate}
+                  onTake={(publicId) => {
+                    const p = boardView.current?.placement();
+                    if (!p) {
+                      actions.reportError('当前视野超出桌面范围，请返回桌面后放置', 'WORLD_BOUNDS');
+                      return;
+                    }
+                    actions.send({ type: 'public.take', publicId, ...p, epoch: state.epoch });
+                  }}
+                />
                 {selectedIds.length > 1 && (
                   <section className="panel" role="status">
-                    已选 {selectedIds.length} 枚棋子{dm ? ' · 按 Delete 批量删除' : ''}
+                    已选 {selectedIds.length} 枚棋子
+                    <button
+                      disabled={
+                        !connected ||
+                        (!dm &&
+                          selectedIds.some((id) => !room.tokens.find((t) => t.id === id)?.publicId))
+                      }
+                      onClick={() => {
+                        if (confirm(`删除或归还选中的 ${selectedIds.length} 枚棋子？`))
+                          actions.deleteTokens(selectedIds);
+                      }}
+                    >
+                      删除 / 归还
+                    </button>
                   </section>
                 )}
                 {selectedIds.length <= 1 && (
@@ -294,7 +381,6 @@ export default function App() {
                     actions={actions}
                     connected={connected}
                     tokenBytes={caps?.tokenBytes}
-                    tokenEdge={caps?.tokenEdge}
                     maxTokens={caps?.maxTokens}
                   />
                 )}
@@ -303,6 +389,9 @@ export default function App() {
                   tokens={room.tokens}
                   selected={selectedIds}
                   onSelect={select}
+                  onLocate={locate}
+                  onHidden={dm ? toggleHidden : undefined}
+                  onReturn={returnToken}
                   onClone={dm ? clone : undefined}
                   connected={connected}
                 />
@@ -312,12 +401,12 @@ export default function App() {
               </div>
               <div hidden={tab !== 'dm'}>
                 <DMPanel
+                  key={`${dm}:${connected}`}
+                  players={state.players}
                   maps={room.maps}
                   currentMapId={room.currentMapId}
                   maxMaps={caps?.maxMaps}
                   mapBytes={caps?.mapBytes}
-                  mapPixels={caps?.mapPixels}
-                  mapEdge={caps?.mapEdge}
                   maxNames={caps?.maxNames}
                   grid={room.grid}
                   names={room.names}

@@ -1,4 +1,4 @@
-import { createDom, installDomGlobals } from './environment';
+import { createDom, installDomGlobals, inputValue } from './environment';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { act, createElement } from 'react';
@@ -65,13 +65,7 @@ test('initiative panel sorts ties, toggles order, edits/deletes and hides withou
       ['修改先攻数字', '-3.5'],
     ]) {
       const input = document.querySelector<HTMLInputElement>(`[aria-label="${label}"]`)!;
-      await act(async () => {
-        Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')!.set!.call(
-          input,
-          value,
-        );
-        input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
-      });
+      await inputValue(input, value);
     }
     await act(async () =>
       document

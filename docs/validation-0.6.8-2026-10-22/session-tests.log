@@ -1,0 +1,48 @@
+✔ temporary IDs use Unicode code points and reject unsupported characters without rewriting (1.334736ms)
+{"time":"2026-10-22T10:50:10.282Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T10:50:10.285Z","level":"warn","event":"auth.login_failed"}
+✔ five player seats and an independent DM seat; failed upgrade keeps player and lock at capacity logs out (191.56953ms)
+{"time":"2026-10-22T10:50:10.340Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T10:50:10.388Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T10:50:10.388Z","level":"warn","event":"auth.login_failed"}
+✔ offline sessions release seats and IDs; reservations expire at 15 seconds, preserving authentication (66.975917ms)
+✔ simulated 20/30 minute restore: refresh, broadcasts, ping and HTTP do not extend expiration; activity and cookies do (76.370533ms)
+{"time":"2026-10-22T10:50:10.479Z","level":"warn","event":"websocket.rejected","reason":"denied"}
+✔ online and offline expiration is enforced before WS handshake and without maintenance (10.976163ms)
+✔ connection takeover replaces only old connection, allows full-room refresh, and invalidates old management target (83.587195ms)
+✔ queued commands from replaced and kicked sockets cannot mutate the room (65.473574ms)
+✔ logout is idempotent without a socket, checks origin, clears cookie and revokes offline authentication (17.496053ms)
+{"time":"2026-10-22T10:50:10.757Z","level":"warn","event":"auth.dm_failed","reason":"denied"}
+{"time":"2026-10-22T10:50:10.757Z","level":"error","event":"backup.create_failed"}
+✔ DM rotation respects authentication source, online order, offline role and unchanged activity expiration (122.692262ms)
+✔ demotion order is connection order and player capacity is never exceeded (82.372165ms)
+{"time":"2026-10-22T10:50:10.895Z","level":"warn","event":"auth.login_failed","reason":"invalid_credentials"}
+{"time":"2026-10-22T10:50:10.895Z","level":"warn","event":"auth.login_failed"}
+✔ room password rotation invalidates every source, online and offline, including modifier (43.934057ms)
+{"time":"2026-10-22T10:50:10.912Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T10:50:10.913Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T10:50:10.919Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T10:50:10.921Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T10:50:10.924Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T10:50:10.927Z","level":"warn","event":"auth.login_failed"}
+{"time":"2026-10-22T10:50:10.929Z","level":"warn","event":"rate_limit.triggered","scope":"dm"}
+{"time":"2026-10-22T10:50:10.929Z","level":"warn","event":"auth.login_failed"}
+✔ concurrent names and seats reserve atomically, DM login shares DM attempt limiter (32.673905ms)
+{"time":"2026-10-22T10:50:10.977Z","level":"warn","event":"auth.dm_failed","scope":"ws","reason":"denied"}
+✔ offline direct-DM source is revoked by DM rotation, and a stale role target cannot be kicked (83.891396ms)
+{"time":"2026-10-22T10:50:11.038Z","level":"warn","event":"auth.login_failed"}
+✔ DM password rotation rejects an already verified direct-DM login result (24.690874ms)
+✔ a player disconnected during asynchronous DM validation cannot gain authority (54.16221ms)
+✔ failed WS protocol handshake releases its reservation immediately without revoking authentication (12.658885ms)
+✔ expired connections are excluded from broadcasts before periodic maintenance (45.483067ms)
+✔ initialization restores by Cookie only and terminal WS closes never schedule a reconnect (5.698624ms)
+✔ offline logout stores no credential and next initialization performs logout before any restoration (1.546617ms)
+✔ logout waits for an in-flight login response so late Set-Cookie cannot restore a signed-out session (0.568459ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1514.143989

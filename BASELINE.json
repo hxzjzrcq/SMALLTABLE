@@ -1,7 +1,7 @@
 {
-  "baselineFile": "SMALLTABLE-2026-10-22-v0.6.6-\u5b8c\u6574\u6e90\u7801.zip",
-  "sha256": "15e2912d6a38aab00b5798c4e7b9a8087c774b647422fffe21eb000d6e00dddc",
-  "softwareVersion": "0.6.7",
-  "roomSchemaVersion": 3,
-  "deliveryDate": "2026-10-22"
+  "baselineFile": "SMALLTABLE-0.7.2-完整源码.zip",
+  "sha256": "e8d86d42cf074c9b9377831f81750d10125ce3bd30d03d693ba68b3f3db5b047",
+  "softwareVersion": "0.7.3",
+  "roomSchemaVersion": 4,
+  "deliveryDate": "2026-10-24"
 }

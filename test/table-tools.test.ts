@@ -139,7 +139,7 @@ test('new room data survives backup/restore and disk load; v1 backups and disk f
     assert.deepEqual(x.service.getRoom(), before);
     const fs = await import('node:fs/promises');
     await fs.writeFile(path.join(x.dir, 'room.json'), JSON.stringify(legacy));
-    await assert.rejects(x.service.storage.load(), /存档损坏/);
+    await assert.rejects(x.service.storage.load(), /不兼容.*要求版本 4/);
     await x.service.storage.save(before);
   } finally {
     await x.cleanup();

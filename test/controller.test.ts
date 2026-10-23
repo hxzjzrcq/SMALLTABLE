@@ -36,12 +36,13 @@ for (const code of [4001, 4003])
         value: { protocol: 'http:', host: 'localhost' },
       });
       const client = new SmalltableClient();
-      await client.join('password');
+      await client.join('password', 'Test');
       socket!.onopen?.();
       const room = initialRoom();
       room.tokens.push({
         id: randomUUID(),
         name: 'A',
+        hidden: false,
         label: '1',
         shape: 'circle',
         color: '#000000',
@@ -58,11 +59,11 @@ for (const code of [4001, 4003])
       socket!.onclose?.({ code, reason: code === 4003 ? '房间口令已更换' : 'idle' });
       if (code === 4003) {
         assert.equal(client.getSnapshot().room, null);
-        assert.equal((client as unknown as { password: string }).password, '');
+        assert.equal('password' in client, false);
       }
       assert.equal(client.getSnapshot().dm, false);
       assert.ok(!JSON.stringify(client.getSnapshot().room).includes('私有说明'));
-      if (code === 4001) assert.equal(client.getSnapshot().room?.tokens[0].note, '公开');
+      if (code === 4001) assert.equal(client.getSnapshot().room, null);
       client.leave();
     } finally {
       globalThis.fetch = previous.fetch;

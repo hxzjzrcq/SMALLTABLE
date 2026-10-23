@@ -20,6 +20,7 @@ test('transparent image hit rectangle supports selecting, dragging and rotation;
   const piece = {
     id: crypto.randomUUID(),
     name: '透明棋子',
+    hidden: false,
     label: '1',
     shape: 'circle' as const,
     color: '#123456',

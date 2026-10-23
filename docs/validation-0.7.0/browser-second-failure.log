@@ -1,0 +1,20 @@
+PASS 1: no-session local production visit shows normal login and version 0.7.0
+PASS 2: player/DM refresh use recovery page; restore role/notes; desktop/phone/short landscape and reduced motion
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+4 !== 3
+
+    at <anonymous> (/workspace/scratch/c856325e9fbb/smalltable/test/browser-release-070.ts:65:10) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 4,
+  expected: 3,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

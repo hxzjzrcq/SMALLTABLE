@@ -1,4 +1,4 @@
-import { createDom, installDomGlobals } from './environment';
+import { createDom, installDomGlobals, inputValue } from './environment';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { act, createElement } from 'react';
@@ -32,18 +32,9 @@ test('effective limits appear in panels; local notes use configured UTF-8 bytes'
     assert.equal(document.querySelector('textarea')!.readOnly, false);
     assert.match(document.querySelector('.meta')!.textContent!, /0 \/ 6/);
     const textarea = document.querySelector('textarea')!;
-    async function input(value: string) {
-      await act(async () => {
-        Object.getOwnPropertyDescriptor(
-          dom.window.HTMLTextAreaElement.prototype,
-          'value',
-        )!.set!.call(textarea, value);
-        textarea.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
-      });
-    }
-    await input('中文');
+    await inputValue(textarea, '中文');
     assert.equal(localStorage.getItem('smalltable.private-notes.v1'), '中文');
-    await input('中文a');
+    await inputValue(textarea, '中文a');
     assert.equal(localStorage.getItem('smalltable.private-notes.v1'), '中文');
     assert.match(document.querySelector('[role="status"]')!.textContent!, /6 字节/);
     const room = initialRoom();

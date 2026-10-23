@@ -49,7 +49,7 @@ async function restore(f: Fixture, p: Peer, data: Buffer) {
 }
 
 test('multi-map defaults, custom count, independent scale and unchanged table; duplicates count entries only', async () => {
-  const f = await fixture();
+  const f = await fixture({ ...defaults, maxDMs: 4 });
   try {
     const peers = await Promise.all([f.peer(), f.peer(), f.peer()]);
     for (const p of peers) await p.unlock();
@@ -134,7 +134,7 @@ test('world bounds apply to commands/load/restore, leave initiative and dice num
       epoch: 0,
     }).success,
   );
-  const f = await fixture();
+  const f = await fixture({ ...defaults, maxDMs: 4 });
   try {
     const dm = await f.peer();
     await dm.unlock();
@@ -163,7 +163,7 @@ test('world bounds apply to commands/load/restore, leave initiative and dice num
 });
 
 test('flip table persists once, preserves named data and music, rejects late movement/drawing and player controls', async () => {
-  const f = await fixture();
+  const f = await fixture({ ...defaults, maxDMs: 4 });
   try {
     const dm = await f.peer(),
       p = await f.peer();
@@ -242,7 +242,7 @@ test('flip table persists once, preserves named data and music, rejects late mov
 });
 
 test('resource leases cancel/expire, survive shared references and release last ref; restart discards leases', async () => {
-  const f = await fixture();
+  const f = await fixture({ ...defaults, maxDMs: 4 });
   try {
     const dm = await f.peer();
     await dm.unlock();
@@ -302,7 +302,7 @@ test('resource leases cancel/expire, survive shared references and release last 
 });
 
 test('exact single/total byte quotas and serialized concurrent uploads; failed cleanup continues counting', async () => {
-  const f = await fixture();
+  const f = await fixture({ ...defaults, maxDMs: 4 });
   try {
     const image = await png();
     const out = await f.service.storage.validateImage(image, 'token');
@@ -343,6 +343,7 @@ test('exact single/total byte quotas and serialized concurrent uploads; failed c
   const concurrent = await fixture({
     ...defaults,
     resourceBytes: Math.max(r.data.length, b.data.length),
+    maxDMs: 2,
   });
   try {
     const a = await concurrent.peer(),
@@ -361,7 +362,7 @@ test('exact single/total byte quotas and serialized concurrent uploads; failed c
 });
 
 test('map and music save failures preserve authoritative state and clean rejected files', async () => {
-  const f = await fixture();
+  const f = await fixture({ ...defaults, maxDMs: 4 });
   try {
     const dm = await f.peer();
     await dm.unlock();
@@ -386,7 +387,7 @@ test('map and music save failures preserve authoritative state and clean rejecte
 });
 
 test('portable backup covers noncurrent maps; restore excludes music, preserves playback and validates candidate quota', async () => {
-  const f = await fixture();
+  const f = await fixture({ ...defaults, maxDMs: 4 });
   try {
     const dm = await f.peer();
     await dm.unlock();
@@ -449,7 +450,7 @@ test('portable backup covers noncurrent maps; restore excludes music, preserves 
 });
 
 test('MP3 bytes are validated, authorized ranges work; pushes pause/stop/switch/natural end/deletion', async () => {
-  const f = await fixture();
+  const f = await fixture({ ...defaults, maxDMs: 4 });
   try {
     const dm = await f.peer(),
       p = await f.peer();
@@ -545,7 +546,7 @@ test('MP3 bytes are validated, authorized ranges work; pushes pause/stop/switch/
 });
 
 test('new positive integer config/overflow validation and startup lower limits reject data', async () => {
-  const f = await fixture();
+  const f = await fixture({ ...defaults, maxDMs: 4 });
   try {
     const file = path.join(f.dir, 'settings.json');
     for (const raw of [
@@ -612,7 +613,7 @@ function paddedMp3(data: Buffer, target: number) {
   return Buffer.concat([header, Buffer.alloc(size), frames]);
 }
 test('valid exact 256 KiB token, 10 MiB map and 4 MiB MP3 accepted; one extra byte rejected; final transcode limit enforced', async () => {
-  const f = await fixture();
+  const f = await fixture({ ...defaults, maxDMs: 4 });
   try {
     const dm = await f.peer();
     await dm.unlock();
@@ -705,7 +706,7 @@ test('custom music count enforced and restoring replacement images does not doub
 });
 
 test('map and token can share content; token replacement and final map deletion release only unused hashes', async () => {
-  const f = await fixture();
+  const f = await fixture({ ...defaults, maxDMs: 4 });
   try {
     const dm = await f.peer();
     await dm.unlock();

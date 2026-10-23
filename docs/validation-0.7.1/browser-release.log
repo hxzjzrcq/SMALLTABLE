@@ -1,0 +1,7 @@
+PASS 1: no-session local production visit shows normal login and version 0.7.0
+PASS 2: player/DM refresh use recovery page; restore role/notes; desktop/phone/short landscape and reduced motion
+PASS 3: plain-text reasons synchronize; 32 emoji accepted; 33 Chinese characters rejected; quick dice omit reason
+PASS 4: refresh network failures stop after three retries; manual recovery succeeds
+PASS 5: terminal conflict returns to login with new-ID instruction and no stale retry
+PASS 6: explicit logout/no-session refresh return to login; no uncaught page errors
+Browser 0.7.0 checks passed: 6

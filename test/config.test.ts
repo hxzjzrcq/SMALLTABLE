@@ -17,7 +17,7 @@ test('JSON partial overrides, defaults, >15 seats, invalid fields and obsolete U
     await writeFile(
       file,
       JSON.stringify({
-        limits: { players: 23, tokens: 300, privateNotesBytes: 9 },
+        limits: { players: 23, dms: 2, tokens: 300, privateNotesBytes: 9 },
         images: { tokenEdge: 512 },
         session: { idleMinutes: 2 },
       }),
@@ -25,6 +25,7 @@ test('JSON partial overrides, defaults, >15 seats, invalid fields and obsolete U
     process.env.DNDROLL_URL = 'unused-invalid-url';
     const c = config(file);
     assert.equal(c.caps.maxSeats, 23);
+    assert.equal(c.caps.maxDMs, 2);
     assert.equal(c.caps.maxTokens, 300);
     assert.equal(c.caps.maxNotesBytes, 9);
     assert.equal(c.caps.tokenEdge, 512);
@@ -137,6 +138,8 @@ test('legacy environment settings require explicit migration; invalid nested lim
       { images: { mapEdge: 0 } },
       { session: { idleMinutes: 1.5 } },
       { limits: { players: '20' } },
+      ...[0, -1, 1.5, '2', Number.MAX_SAFE_INTEGER].map((dms) => ({ limits: { dms } })),
+      { limits: { players: Number.MAX_SAFE_INTEGER, dms: 1 } },
       { images: { tokenEdge: Number.MAX_SAFE_INTEGER } },
       { session: { idleMinutes: Number.MAX_SAFE_INTEGER } },
       { limits: { rollHistory: Number.MAX_SAFE_INTEGER } },

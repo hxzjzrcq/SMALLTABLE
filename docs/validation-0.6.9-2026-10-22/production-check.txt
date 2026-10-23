@@ -1,0 +1,4 @@
+Independent temporary directory: /tmp/st-prod-069-u1618nwh
+Command: npm ci --omit=dev --offline
+Then npm start with temporary initial credentials, HOST=127.0.0.1 and PORT=3099.
+Verified: node_modules/tsx exists; node_modules/vite absent; GET / returns HTML HTTP 200; GET /api/config HTTP 200; SIGTERM cleanup completed.

@@ -1,3 +1,5 @@
+import { sessionBody } from './helpers';
+let loginSequence068 = 0;
 import { waitEvent, createSmalltable } from './helpers';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -23,9 +25,9 @@ test('public notes synchronize, persist and preserve DM-only fields', async () =
     const res = await fetch(url + '/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: 'note-test-room' }),
+      body: JSON.stringify({ password: 'note-test-room', name: 'U' + ++loginSequence068 }),
     });
-    const { token } = await res.json();
+    const { token } = await sessionBody(res);
     const ws = new WebSocket(url.replace('http', 'ws') + '/ws', ['tabletop', token]);
     peers.push(ws);
     const events: ServerEvent[] = [];
@@ -41,6 +43,7 @@ test('public notes synchronize, persist and preserve DM-only fields', async () =
     const token = {
       id: '00000000-0000-4000-8000-000000000001',
       name: '棋子',
+      hidden: false,
       label: '1',
       shape: 'circle',
       color: '#3872a4',

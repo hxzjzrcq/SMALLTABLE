@@ -1,3 +1,5 @@
+import { sessionBody } from '../helpers';
+let loginSequence068 = 0;
 import { waitEvent } from '../helpers';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -16,7 +18,8 @@ export const roomPassword = 'Room-Release-060',
 export const token = () => ({
   id: randomUUID(),
   name: 'A',
-  label: '',
+  hidden: false,
+  label: '1',
   shape: 'circle' as const,
   color: '#123456',
   x: 0,
@@ -48,10 +51,10 @@ export async function fixture(caps: Capabilities = DEFAULT_CAPABILITIES) {
     const login = await fetch(url + '/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: roomPassword }),
+      body: JSON.stringify({ password: roomPassword, name: 'U' + ++loginSequence068 }),
     });
     assert.equal(login.status, 200);
-    const { token: session } = await login.json();
+    const { token: session } = await sessionBody(login);
     const ws = new WebSocket(url.replace('http', 'ws') + '/ws', ['tabletop', session]);
     sockets.push(ws);
     const events: ServerEvent[] = [];

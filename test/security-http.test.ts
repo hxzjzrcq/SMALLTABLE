@@ -1,3 +1,5 @@
+import { sessionBody } from './helpers';
+let loginSequence068 = 0;
 import { waitEvent, createSmalltable } from './helpers';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -41,10 +43,10 @@ test('HTTP/WS authorization, lock/disconnect and serialized outputs preserve sec
     const login = await fetch(url + '/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: roomPassword }),
+      body: JSON.stringify({ password: roomPassword, name: 'U' + ++loginSequence068 }),
     });
     assert.equal(login.status, 200);
-    const { token } = await login.json();
+    const { token } = await sessionBody(login);
     const headers = { Authorization: `Bearer ${token}` };
     ws = new WebSocket(url.replace('http', 'ws') + '/ws', ['tabletop', token]);
     ws.on('message', (d) => events.push(JSON.parse(d.toString())));
@@ -54,7 +56,8 @@ test('HTTP/WS authorization, lock/disconnect and serialized outputs preserve sec
     const piece = {
       id: randomUUID(),
       name: 'A',
-      label: '',
+      hidden: false,
+      label: '1',
       shape: 'circle',
       color: '#000000',
       x: 0,
@@ -160,7 +163,8 @@ test('HTTP/WS authorization, lock/disconnect and serialized outputs preserve sec
     const closed = new Promise<void>((r) => ws!.once('close', () => r()));
     ws.close();
     await closed;
-    assert.equal((await fetch(url + '/api/backup', { headers })).status, 401);
+    assert.equal((await fetch(url + '/api/backup', { headers })).status, 400);
+    assert.equal((await fetch(url + '/api/health', { headers })).status, 200);
   } finally {
     ws?.terminate();
     await service.close();

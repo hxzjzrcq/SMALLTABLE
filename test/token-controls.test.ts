@@ -11,6 +11,7 @@ test('selection-only rotation and player public-note-only controls', () => {
   const token = {
     id: '00000000-0000-4000-8000-000000000001',
     name: '测试',
+    hidden: false,
     label: '1',
     shape: 'square' as const,
     color: '#3872a4',

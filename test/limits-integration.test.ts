@@ -1,3 +1,5 @@
+import { sessionBody } from './helpers';
+let loginSequence068 = 0;
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, readFile } from 'node:fs/promises';
@@ -52,7 +54,7 @@ test('real API/socket limits and image edits avoid re-encoding; invalid resource
     fetch(url + '/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: 'test-room' }),
+      body: JSON.stringify({ password: 'test-room', name: 'U' + ++loginSequence068 }),
     });
   try {
     assert.deepEqual(await (await fetch(url + '/api/config')).json(), caps);
@@ -60,7 +62,7 @@ test('real API/socket limits and image edits avoid re-encoding; invalid resource
     for (let i = 0; i < 2; i++) {
       const res = await login();
       assert.equal(res.status, 200);
-      const { token: credential } = await res.json();
+      const { token: credential } = await sessionBody(res);
       if (!i) auth = credential;
       const peer = new Peer(
         new WebSocket(url.replace('http', 'ws') + '/ws', ['tabletop', credential]),
@@ -184,11 +186,11 @@ test('configured >15 connections are admitted and the next seat is rejected', as
       const res = await fetch(url + '/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: 'test-room' }),
+        body: JSON.stringify({ password: 'test-room', name: 'U' + ++loginSequence068 }),
       });
       assert.equal(res.status, i < 17 ? 200 : 409);
       if (i < 17) {
-        const { token } = await res.json();
+        const { token } = await sessionBody(res);
         const p = new Peer(new WebSocket(url.replace('http', 'ws') + '/ws', ['tabletop', token]));
         peers.push(p);
         await p.until((e) => e.type === 'snapshot');

@@ -1,5 +1,13 @@
 import { useState } from 'react';
 import type { SmalltableClient } from '../controller';
+const emptyPasswords = {
+  currentDMPassword: '',
+  roomPassword: '',
+  roomConfirm: '',
+  dmPassword: '',
+  dmConfirm: '',
+};
+
 export function PasswordSettings({
   actions,
   connected,
@@ -7,13 +15,7 @@ export function PasswordSettings({
   actions: SmalltableClient;
   connected: boolean;
 }) {
-  const [values, setValues] = useState({
-    currentDMPassword: '',
-    roomPassword: '',
-    roomConfirm: '',
-    dmPassword: '',
-    dmConfirm: '',
-  });
+  const [values, setValues] = useState(emptyPasswords);
   const [busy, setBusy] = useState(false),
     [message, setMessage] = useState('');
   async function submit(e: React.FormEvent) {
@@ -40,13 +42,7 @@ export function PasswordSettings({
     } catch (e) {
       setMessage(e instanceof Error ? e.message : String(e));
     } finally {
-      setValues({
-        currentDMPassword: '',
-        roomPassword: '',
-        roomConfirm: '',
-        dmPassword: '',
-        dmConfirm: '',
-      });
+      setValues(emptyPasswords);
       setBusy(false);
     }
   }

@@ -1,12 +1,9 @@
+import { launchBrowser, submitLogin } from './support/browser';
+import { DEFAULT_CAPABILITIES } from '../src/shared/limits';
 import assert from 'node:assert/strict';
-import { chromium } from 'playwright';
 import { fixture, roomPassword, dmPassword, token } from './support/management-fixture';
-const f = await fixture();
-const browser = await chromium.launch({
-  headless: true,
-  executablePath: process.env.SMALLTABLE_CHROMIUM,
-  args: ['--no-sandbox', '--disable-dev-shm-usage'],
-});
+const f = await fixture({ ...DEFAULT_CAPABILITIES, maxDMs: 2 });
+const browser = await launchBrowser();
 try {
   const manager = await f.peer();
   await manager.unlock();
@@ -16,8 +13,7 @@ try {
   const context = await browser.newContext();
   const page = await context.newPage();
   await page.goto(f.url);
-  await page.locator('#st-login-password').fill(roomPassword);
-  await page.getByRole('button', { name: '进入房间', exact: true }).click();
+  await submitLogin(page, 'Browser', roomPassword);
   const piece = page.locator('.board-token');
   await piece.click();
   let dialogs = 0;

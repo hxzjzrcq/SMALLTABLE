@@ -1,3 +1,4 @@
+let loginSequence068 = 0;
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, readFile } from 'node:fs/promises';
@@ -14,7 +15,7 @@ test('real sockets: password, role isolation, movement, rotation, dice log and b
     const bad = await fetch(x.url + '/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: 'wrong' }),
+      body: JSON.stringify({ password: 'wrong', name: 'U' + ++loginSequence068 }),
     });
     assert.equal(bad.status, 403);
     const dm = await x.peer(),
@@ -100,7 +101,7 @@ test('static entry serves its real JS/CSS and images require room authorization'
     const blocked = await fetch(x.url + '/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Origin: 'https://other.example' },
-      body: JSON.stringify({ password: 'test-room' }),
+      body: JSON.stringify({ password: 'test-room', name: 'U' + ++loginSequence068 }),
     });
     assert.equal(blocked.status, 403);
   } finally {
@@ -108,38 +109,14 @@ test('static entry serves its real JS/CSS and images require room authorization'
   }
 });
 
-test('idle clients are disconnected even when WebSocket pong heartbeats are alive', async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), 'tabletop-idle-'));
-  const service = await createSmalltable(
-    {
-      ...config(),
-      dataDir: dir,
-      caps: { ...config().caps, idleMs: 150 },
-    },
-    { roomPassword: 'test-room', dmPassword: 'test-dm-55' },
-  );
-  await new Promise<void>((r) => service.server.listen(0, '127.0.0.1', r));
+test('healthy connection is retained beyond a configured former idle threshold', async () => {
+  const f = await setup();
   try {
-    const url = `http://127.0.0.1:${(service.server.address() as { port: number }).port}`;
-    const login = await fetch(url + '/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: 'test-room' }),
-    });
-    const { token } = await login.json();
-    const peer = new Peer(url, token);
-    await peer.wait((e) => e.type === 'snapshot');
-    const code = await new Promise<number>((resolve, reject) => {
-      const timer = setTimeout(() => reject(Error('idle disconnect timed out')), 12000);
-      peer.ws.on('close', (code) => {
-        clearTimeout(timer);
-        resolve(code);
-      });
-    });
-    assert.equal(code, 4001);
+    const peer = await f.peer();
+    await new Promise((r) => setTimeout(r, 200));
+    assert.equal(peer.ws.readyState, 1);
   } finally {
-    await service.close();
-    await rm(dir, { recursive: true, force: true });
+    await f.cleanup();
   }
 });
 

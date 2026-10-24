@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>SMALLTABLE 自由角色卡</title>
+    <script type="module" crossorigin src="/assets/characterCard-DawJ8o5_.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
+    <link rel="stylesheet" crossorigin href="/assets/characterCard-Dvb0SwBF.css">
+  </head>
+  <body>
+    <header>
+      <div>
+        <span class="eyebrow">YOUR RULES · YOUR CHARACTER</span>
+        <h1>自由角色卡<span class="edition">个人本地工具</span></h1>
+      </div>
+      <nav aria-label="文件操作">
+        <button id="new">新建空白卡</button><button id="import">导入 JSON</button
+        ><button id="json" class="primary">导出 JSON 存档</button
+        ><button id="txt">导出 TXT 阅读版</button><button id="help">使用帮助</button>
+      </nav>
+    </header>
+    <main>
+      <div class="statusbar">
+        <span>自由记录 · 整数求和 · 资源计数</span>
+        <div>
+          <span id="status" role="status">默认示例卡 · 可直接修改或新建空白卡</span>
+          <button id="saved" hidden>确认已保存 JSON</button>
+        </div>
+      </div>
+      <div id="sheet"></div>
+    </main>
+    <input id="file" type="file" accept=".json,application/json" hidden />
+    <dialog id="tag-dialog">
+      <form id="tag-form">
+        <div class="dialog-head">
+          <h2>标签详情</h2>
+          <button type="button" id="cancel-x" aria-label="取消编辑">×</button>
+        </div>
+        <label>名称<input id="tag-name" /></label>
+        <div class="dialog-grid">
+          <label
+            >显示模式<select id="tag-mode">
+              <option value="count">计数</option>
+              <option value="infinite">无限 ∞</option>
+              <option value="none">不计数 —</option>
+            </select></label
+          ><label id="count-label"
+            >当前数量（0–99）<input id="tag-count" type="number" min="0" max="99" step="1" required
+          /></label>
+        </div>
+        <label>详情<textarea id="tag-detail" rows="12"></textarea></label>
+        <footer>
+          <button type="button" id="cancel">取消</button
+          ><button class="primary" type="submit">保存</button>
+        </footer>
+      </form>
+    </dialog>
+    <dialog id="help-dialog">
+      <h2>使用帮助</h2>
+      <div class="help-copy">
+        <p>
+          角色卡只在当前浏览器内编辑，不发送给主持人或其他玩家。关闭此工具再打开会保留内容；刷新页面、离开房间或会话失效会丢失未导出的内容。首次打开或刷新后显示默认示例卡；可直接修改或新建空白卡。NAME、标准速查、其他角色内容和附注中的淡色文字仅为占位提示，不是角色数据，不进入导出。页面刷新或关闭会丢失未导出的内容。
+        </p>
+        <p>
+          <b>JSON 存档</b>完整保存内容、排列、开关和折叠状态；TXT
+          是供阅读的文字版，不能导入。下载是否最终写入磁盘由浏览器决定；本工具不能检测您在浏览器下载面板取消保存。请检查下载文件。确认已保存后，点击状态栏的「确认已保存
+          JSON」解除未保存提醒。
+        </p>
+        <p>
+          八区域顺序固定。被动和主动各自横向排列，可分别收起草稿纸。标准速查、其他内容和附注均为纯文本。
+        </p>
+        <p>
+          计算行仅将完整整数相加。+1D6、2D6+3
+          等保留为未计算文本，不掷骰。小数、错误整数与溢出会标红并阻止正式导出。临时无效输入保留在当前页面，请修正后保存。
+        </p>
+        <p>
+          拖动 ⠿
+          把手排列项目、计算行或标签，只能在所属列表内移动。拖动时显示半透明预览、原位占位和绿色插入线；无效位置会提示不可放置。触摸预览尽量避开手指。拖到计算区域边缘可自动横向滚动。手机用空白处横向滑动，用把手拖拽。键盘聚焦把手后按方向键可排序。
+        </p>
+        <p>
+          点击标签名称编辑；桌面悬停可预览详情。计数范围 0–99，∞ 和 —
+          不显示加减。详情窗口的取消不会提交。
+        </p>
+        <p>
+          本工具没有浏览器自动草稿。请定期导出 JSON，再关闭页面。手机通过 SmallTable
+          网址进入即可，不需要下载 HTML。手机视口模拟不代表手机实机验证。
+        </p>
+      </div>
+      <button id="help-close" class="primary">知道了</button>
+    </dialog>
+  </body>
+</html>

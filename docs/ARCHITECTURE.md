@@ -1,6 +1,6 @@
 # 当前架构
 
-适用于 SMALLTABLE 0.7.3。运行与功能入口见 [README](../README.md)，依赖和部署约定见 [DEPENDENCIES](DEPENDENCIES.md)。
+适用于 SMALLTABLE 0.7.4。运行与功能入口见 [README](../README.md)，依赖和部署约定见 [DEPENDENCIES](DEPENDENCIES.md)。
 
 ## 模块与数据归属
 
@@ -106,3 +106,11 @@ controller.recovery 仅驱动无桌面时的恢复展示，沿用 Cookie、错�
 普通棋子 hidden 持久化，隐藏不减少额度或图片引用。Board 从渲染和命中区域剔除隐藏对象，列表保留并可本机定位；服务端对 DM/PL 一并拒绝隐藏对象的移动/旋转。隐藏、改字、取用/归还、创建/克隆沿用候选保存路径，失败保留原房间。
 
 UploadStatus 只呈现控制器的实际上传阶段；XMLHttpRequest 的上传进度与服务器处理响应分开，同入口防重复。诊断从固定字段白名单生成，不记录房间正文或凭证。
+
+## 个人自由角色卡
+
+src/character-card/ 是从独立自由角色卡引入的本机工具：core.js 负责示意卡、整数求和、存档校验与 TXT；drag.js 负责本机排序和拖动反馈；app.js 负责单卡 DOM 编辑、文件导入/下载；style.css 为原始样式，embedded.css 只作内嵌视觉适配，host.js 只发送无内容活动及关闭消息。
+
+character-card.html 是第三个 Vite 页面入口。源码脚本与样式均外置，构建后受既有同源 CSP 约束，不开放 inline script。CharacterCardTool.tsx 管理模态与 iframe 挂载，沿用 SmalltableClient.activity()，不建立网络或持久化通道。卡片没有进入 src/shared/model.ts、房间队列、广播、日志或房间 ZIP；房间 schemaVersion 仍为 4，角色卡 JSON 独立使用 format=free-character-card、schemaVersion=1。
+
+关闭窗口只隐藏，不重建 iframe；房间视图卸载会移除 iframe。纯文本占位提示属于 UI，不写入状态；默认计算项目与标签属于示例数据。存档合计从计算行派生，不信任缓存总数。导入逐项校验并整体替换，不迁移其他格式；具体使用及保存限制见帮助。

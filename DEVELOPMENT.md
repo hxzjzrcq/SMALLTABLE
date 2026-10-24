@@ -1,6 +1,6 @@
 # 开发导读
 
-本文面向维护 SmallTable 0.7.3 的开发者。安装与部署先读[帮助](帮助.md)，修改前读 [AGENTS.md](AGENTS.md) 和[当前架构](docs/ARCHITECTURE.md)。程序版本以 `package.json` 为准，协议与存档结构以 `src/shared/model.ts` 为准。
+本文面向维护 SmallTable 0.7.4 的开发者。安装与部署先读[帮助](帮助.md)，修改前读 [AGENTS.md](AGENTS.md) 和[当前架构](docs/ARCHITECTURE.md)。程序版本以 `package.json` 为准，协议与存档结构以 `src/shared/model.ts` 为准。
 
 ## 开发与检查
 
@@ -19,6 +19,7 @@
 | 桌面与鼠标操作               | `src/client/components/Board.tsx`                                        |
 | 会话生命周期与席位           | `src/server/sessions.ts`                                                 |
 | UI 操作接口与连接状态        | `src/client/controller.ts`                                               |
+| 自由角色卡与工具容器         | `src/character-card/`、`src/client/components/CharacterCardTool.tsx`     |
 | 数据结构、消息、公开数据投影 | `src/shared/model.ts`                                                    |
 | 通用骰子解析与计算           | `src/shared/dice.ts`                                                     |
 | 服务端同步与 API             | `src/server/app.ts`                                                      |
@@ -41,21 +42,21 @@
 
 按读者任务组织文档。当前说明直接描述现状；功能变化时修改相应段落，不追加“某版本新增”章节。每项事实尽量保留一个主要说明位置，其他文档概述并链接。必要的入门步骤可在 README 简述，完整步骤由帮助维护。
 
-| 文档 | 负责内容 |
-| --- | --- |
-| [README](README.md) | 项目用途、主要功能、最短入门与阅读入口 |
-| [帮助](帮助.md) | 使用者与部署者的安装、操作、升级和排错步骤 |
-| [开发导读](DEVELOPMENT.md) | 代码导航、开发入口与文档维护规则 |
-| [架构](docs/ARCHITECTURE.md) | 模块职责、状态归属、同步和持久化机制 |
-| [配置](docs/CONFIGURATION.md) | 环境变量、JSON 字段、默认限额和派生预算 |
-| [依赖与部署](docs/DEPENDENCIES.md) | 依赖用途、构建产物和部署技术约束 |
-| [安全与密码](docs/SECURITY.md) | 授权、会话、凭证、密码策略与重置 |
-| [UI](docs/UI.md) | 当前界面交互和本机状态维护约定 |
-| [日志](docs/LOGGING.md) | 日志格式、事件及隐私边界 |
-| [测试](docs/TESTING.md) | 如何执行、寻找和维护测试，不存历次结果 |
-| [更新日志](CHANGELOG.md) | 各版本的简要变化和必要的兼容性提示 |
+| 文档                               | 负责内容                                     |
+| ---------------------------------- | -------------------------------------------- |
+| [README](README.md)                | 项目用途、主要功能、最短入门与阅读入口       |
+| [帮助](帮助.md)                    | 使用者与部署者的安装、操作、升级和排错步骤   |
+| [开发导读](DEVELOPMENT.md)         | 代码导航、开发入口与文档维护规则             |
+| [架构](docs/ARCHITECTURE.md)       | 模块职责、状态归属、同步和持久化机制         |
+| [配置](docs/CONFIGURATION.md)      | 环境变量、JSON 字段、默认限额和派生预算      |
+| [依赖与部署](docs/DEPENDENCIES.md) | 依赖用途、构建产物和部署技术约束             |
+| [安全与密码](docs/SECURITY.md)     | 授权、会话、凭证、密码策略与重置             |
+| [UI](docs/UI.md)                   | 当前界面交互和本机状态维护约定               |
+| [日志](docs/LOGGING.md)            | 日志格式、事件及隐私边界                     |
+| [测试](docs/TESTING.md)            | 如何执行、寻找和维护测试，不存历次结果       |
+| [更新日志](CHANGELOG.md)           | 各版本的简要变化和必要的兼容性提示           |
 | [历史档案](docs/history/README.md) | 版本任务书、交接、实现、审查、验证和原始证据 |
-| [AGENTS](AGENTS.md) | 自动化修改的仓库工作要求 |
+| [AGENTS](AGENTS.md)                | 自动化修改的仓库工作要求                     |
 
 测试结果须注明版本、命令、环境、范围和未验证项，保存在历史目录。旧任务书不是当前操作手册，计划不能写成已实现。原有历史报告保留当时结论；修正归档路径和链接时不改写测试结果。不要为每次小更新新增一份重复总结。
 

@@ -1,0 +1,18 @@
+{
+  "version": "0.7.4",
+  "baseline": "f55a99abdba6deb2bd1728e37aa0cfc7c82ca84d",
+  "entry": "dist/character-card.html",
+  "assetsPresent": [
+    "/assets/characterCard-DawJ8o5_.js",
+    "/assets/modulepreload-polyfill-B5Qt9EMX.js",
+    "/assets/characterCard-Dvb0SwBF.css"
+  ],
+  "cmdVersionOnlyChange": true,
+  "cmdCRLF": 51,
+  "stageTestsPassed": 10,
+  "characterCardCorePassed": 8,
+  "characterCardToolPassed": 2,
+  "browserGroupsPassed": 5,
+  "windowsCMDExecuted": false,
+  "physicalPhoneTested": false
+}

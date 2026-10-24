@@ -1,0 +1,36 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> smalltable@0.7.4 test:character-card
+> node --test test/character-card-core.test.mjs && node --import tsx --test test/character-card-tool.test.ts && node --import tsx test/browser-character-card-074.ts
+
+✔ 完整整数、负数、0与空白 (7.922871ms)
+✔ 表达式完全不拆整数，按顺序保留原文 (1.746749ms)
+✔ 小数与格式错误均拒绝；停用错误行也要求修正 (0.933357ms)
+✔ 精确范围和合计溢出，BigInt中间计算避免精度丢失 (0.796204ms)
+✔ 50标签长文本、顺序、开关及折叠状态JSON无损往返 (7.31198ms)
+✔ 拒绝错误版本、结构、类型、范围、重复ID及额外字段 (13.927049ms)
+✔ TXT包含折叠计算行、停用、0标签、所有长详情与八区域 (2.775094ms)
+✔ 默认示例的计算与标签有效，文本提示不作为存档数据，每次创建相互独立 (4.463783ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 380.668387
+✔ card dialog loads lazily, preserves frame, filters activity/close messages and cleans listeners (469.066594ms)
+✔ production card and every compiled asset load under unchanged CSP without room mutation (150.875592ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4901.156286
+PASS production: default card/placeholders, arithmetic, tag detail/count, collapse, mouse sorting/preview, nested Escape, Delete guard, close/reopen, JSON/TXT downloads and import
+PASS mobile simulation: player entry, no horizontal page overflow, fixed horizontal calculators, native touch scroll vs handle sort, nested detail and persistent return button
+PASS private card data never enters room state or outgoing room socket; separate player starts with default card; unchanged CSP has no browser errors
+PASS refresh returns to default example card (no auto-draft)
+PASS controlled WebSocket close/reconnect keeps the same frame and local card

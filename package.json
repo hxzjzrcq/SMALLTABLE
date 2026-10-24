@@ -1,6 +1,6 @@
 {
   "name": "smalltable",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "private": true,
   "type": "module",
   "engines": {
@@ -22,7 +22,8 @@
     "test:shortcuts": "node --import tsx --test test/shortcuts.test.ts && node --import tsx test/browser-shortcuts-066.ts",
     "test:selection": "node --import tsx --test test/iteration-067.test.ts && node --import tsx test/browser-selection-067.ts",
     "test:session": "node --import tsx --test test/session-068.test.ts test/session-controller-068.test.ts && node --import tsx test/browser-session-068.ts",
-    "test:recovery": "node --import tsx --test test/session-controller-068.test.ts test/ui-state.test.ts test/session-068.test.ts && node --import tsx test/browser-recovery-069.ts"
+    "test:recovery": "node --import tsx --test test/session-controller-068.test.ts test/ui-state.test.ts test/session-068.test.ts && node --import tsx test/browser-recovery-069.ts",
+    "test:character-card": "node --test test/character-card-core.test.mjs && node --import tsx --test test/character-card-tool.test.ts && node --import tsx test/browser-character-card-074.ts"
   },
   "dependencies": {
     "@dndroll/core": "file:packages/dndroll-core",

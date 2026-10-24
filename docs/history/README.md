@@ -35,6 +35,8 @@
 
 ## 验证记录
 
+- [VALIDATION-0.7.4.md](VALIDATION-0.7.4.md)
+
 - [VALIDATION-test-cleanup-2026-10-20.md](VALIDATION-test-cleanup-2026-10-20.md)
 - [VALIDATION-060fix.md](VALIDATION-060fix.md)
 - [VALIDATION-0.7.3.md](VALIDATION-0.7.3.md)

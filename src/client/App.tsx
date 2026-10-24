@@ -11,6 +11,7 @@ import { Board, type BoardView } from './components/Board';
 import { Notes } from './components/Notes';
 import { DicePanel } from './components/DicePanel';
 import { Inspector, TokenList } from './components/Inspector';
+import { CharacterCardTool } from './components/CharacterCardTool';
 import { AbilityTool } from './components/AbilityTool';
 import { InitiativePanel } from './components/InitiativePanel';
 import { nextLabel, type Drawing } from '../shared/model';
@@ -22,11 +23,13 @@ export default function App() {
     [tool, setTool] = useState<'move' | 'measure' | 'draw'>('move'),
     [fit, setFit] = useState(0),
     [abilityOpen, setAbilityOpen] = useState(false),
+    [characterCardOpen, setCharacterCardOpen] = useState(false),
     [initiativeOpen, setInitiativeOpen] = useState(false),
     [drawColor, setDrawColor] = useState<Drawing['color']>('#d33b32'),
     [panelOpen, setPanelOpen] = useState(true),
     [tab, setTab] = useState<'dice' | 'tokens' | 'notes' | 'dm'>('dice');
   const closeInitiative = useCallback(() => setInitiativeOpen(false), []);
+  const closeCharacterCard = useCallback(() => setCharacterCardOpen(false), []);
   const closeAbility = useCallback(() => setAbilityOpen(false), []);
   const boardView = useRef<BoardView | null>(null);
   const previousHidden = useRef(new Set<string>());
@@ -102,6 +105,7 @@ export default function App() {
             connected &&
             selectedIds.length > 0 &&
             !abilityOpen &&
+            !characterCardOpen &&
             (dm ||
               selectedIds.every(
                 (id) => room?.tokens.find((t) => t.id === id)?.publicId !== undefined,
@@ -113,7 +117,7 @@ export default function App() {
           },
         },
       ]),
-    [actions, connected, dm, selectedIds, room?.tokens, abilityOpen],
+    [actions, connected, dm, selectedIds, room?.tokens, abilityOpen, characterCardOpen],
   );
   if (!room && state.recovery)
     return (
@@ -196,7 +200,7 @@ export default function App() {
             </button>
           )}
           {room && <button onClick={() => setAbilityOpen(true)}>属性工具</button>}
-          <button onClick={() => window.alert('角色卡管理尚未实装，敬请期待。')}>角色卡管理</button>
+          <button onClick={() => setCharacterCardOpen(true)}>角色卡管理</button>
           {!connected && state.resumable && (
             <button disabled={connection !== 'disconnected'} onClick={() => void actions.retry()}>
               重试进入
@@ -418,6 +422,11 @@ export default function App() {
             </div>
           </aside>
         </main>
+        <CharacterCardTool
+          open={characterCardOpen}
+          onClose={closeCharacterCard}
+          actions={actions}
+        />
         <AbilityTool open={abilityOpen} onClose={closeAbility} actions={actions} />
         <footer>
           格是标尺，规则由人解释。

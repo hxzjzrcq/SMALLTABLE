@@ -12,6 +12,8 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    rollupOptions: { input: { main: 'index.html', dndroll: 'dndroll.html' } },
+    rollupOptions: {
+      input: { main: 'index.html', dndroll: 'dndroll.html', characterCard: 'character-card.html' },
+    },
   },
 });

@@ -1,0 +1,74 @@
+/* Frame-local visual adaptation: the desktop's global styles never enter this document. */
+:root {
+  color: #263341;
+  background: #edf0f3;
+  --ink: #263341;
+  --muted: #62717f;
+  --line: #d6dde3;
+  --green: #245c89;
+}
+body > header {
+  padding-top: 18px;
+  padding-bottom: 12px;
+}
+section,
+dialog {
+  background: #fff;
+  border-radius: 6px;
+}
+.edition {
+  background: #e5edf4;
+}
+.project,
+.tag {
+  background: #f3f6f8;
+  border-color: #d6dde3;
+}
+textarea.plain {
+  background: #f4f6f8;
+}
+.primary:hover {
+  background: #1c4a6f;
+}
+button {
+  min-height: 32px;
+}
+.tag .icon,
+.tag-open,
+.handle {
+  min-width: 28px;
+  min-height: 32px;
+}
+@media (max-width: 600px) {
+  body > header {
+    padding: 14px 12px 8px;
+  }
+  .eyebrow {
+    display: none;
+  }
+  h1 {
+    font-size: 23px;
+  }
+  nav {
+    gap: 6px;
+  }
+  nav button {
+    min-height: 38px;
+  }
+  .row .handle {
+    min-width: 20px;
+  }
+  .tag .icon,
+  .tag-open {
+    min-height: 38px;
+  }
+  dialog input,
+  dialog textarea,
+  dialog select,
+  textarea.plain {
+    font-size: 16px;
+  }
+  textarea.name {
+    min-height: 74px;
+  }
+}

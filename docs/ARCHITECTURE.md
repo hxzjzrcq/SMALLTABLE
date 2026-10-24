@@ -1,6 +1,6 @@
 # 当前架构
 
-适用于 SMALLTABLE 0.7.2。运行与功能入口见 [README](../README.md)，依赖和部署约定见 [DEPENDENCIES](DEPENDENCIES.md)。
+适用于 SMALLTABLE 0.7.3。运行与功能入口见 [README](../README.md)，依赖和部署约定见 [DEPENDENCIES](DEPENDENCIES.md)。
 
 ## 模块与数据归属
 
@@ -45,17 +45,17 @@ DNDROLL 运行于独立 iframe。规则只调用 Core，房间不保存或广播
 - `Board.tsx` 同时处理 SVG 绘制和多种手势。新增地图交互或发现相互干扰时，可抽出棋子绘制或指针/触屏处理；简单视觉修改仍可留在原组件。拆分应保留统一坐标转换、拖动预览、节流与最终位置提交，以及断连、工具切换和 epoch 变化时的交互清理。
 - 优先按职责拆分，不为降低行数机械分文件，也不为尚未确定的功能预建通用框架。
 
-文档职责与更新原则统一见 [README 的文档维护](../README.md#文档维护)。
+文档职责与更新原则统一见 [开发导读的文档维护](../DEVELOPMENT.md#文档维护)。
 
-## 0.6.0 消息与更新边界
+## 消息与界面更新
 
-`src/shared/model.ts` 仍是消息和房间结构权威。该次历史更新未改变 schema；当前 schema 为 4。WebSocket snapshot 新增 `caps`，服务端每次快照均发送当前生效限额。类型中保留可选字段以兼容旧消息及既有测试，客户端缺少 caps 时保留已读取配置。GET /api/config 及 caps 增加 maxInitiative、maxDrawings、maxRolls、maxNames，删除无效 dndrollUrl。health 的会话要求见 [安全](SECURITY.md#授权登记)；不能把本轮称为协议完全未变。
+`src/shared/model.ts` 定义房间消息和结构。服务端每次快照通过 `caps` 发送当前生效限额，字段与 `GET /api/config` 一致。类型保留可选 caps 以接受缺少该字段的消息；客户端缺少 caps 时保留已读取配置。配置字段见[配置](CONFIGURATION.md)，health 的会话要求见[安全](SECURITY.md#授权登记)。
 
 棋子增量仍只更新 room.tokens 和 revision，保留其它切片引用。面板只接收所需切片，memo 和稳定回调阻断无关执行；TokenList 只比较其实际显示字段、顺序、选中状态与限额。没有新增 store 或状态库。具体草稿、挂载和撤权约定见 [UI](UI.md)。
 
-060fix 仅在构建层补齐 Core 独立浏览器脚本和 source map，未改变上述运行架构；生成命令及产物用途统一见 [依赖与构建](DEPENDENCIES.md#core-独立浏览器产物)。
+Core 提供独立浏览器脚本和 source map；生成命令及产物用途见 [依赖与构建](DEPENDENCIES.md#core-独立浏览器产物)。
 
-## 0.6.1 运行日志
+## 运行日志
 
 `src/server/log.ts` 提供固定字段的单行 JSON 日志；配置、服务入口、HTTP/WS 及存储边界调用它，不参与业务状态或存档。进程异常处理器仅由可执行入口安装。格式、事件与收集方式见 [运行日志](LOGGING.md)。测试工程整理见 [测试维护](TESTING.md)。
 
@@ -77,25 +77,25 @@ DNDROLL 运行于独立 iframe。规则只调用 Core，房间不保存或广播
 
 键盘快捷键由 `client/shortcuts.ts` 统一处理事件保护和监听清理，App 绑定既有控制器命令；快捷键不另建状态格式；批量删除协议见下。具体规则见 [UI](UI.md#键盘快捷键)。
 
-## 0.6.7 克隆与批量删除
+## 克隆与批量删除
 
 选择集合只存在 App 的本地状态，`selection.ts` 定义普通选择与 Shift 切换。Board 与目录接收同一集合；单选编辑器使用集合中唯一的 ID。有效集合未变化时保留引用，避免位置广播使无关面板重复渲染。克隆等待服务端快照后选中，失败不会把新 ID 当作已创建实体。
 
 SmalltableClient.cloneToken 从最新快照取字段，使用现有 create 命令；共享素材哈希，沿用数量、图片验证及资源引用逻辑。快速克隆不保存模板、不引入素材库。
 
-新增 `delete.many`，携带唯一、非空且不超过实际棋子数量上限的 ID 数组与 epoch。服务端在既有串行队列内重验对象权限与 epoch（PL 只允许全部为公共棋子），单次过滤候选房间，保存成功后发布一个快照并清理资源。与单枚删除共用提交和清理路径。保存失败保留原内存及磁盘房间，不提前删除图片。其他 DM 已删除的 ID 忽略；全部已消失则返回当前快照、不新增修订。过期 epoch 整次拒绝。删除后迟到移动不能重新创建棋子。WebSocket 消息容量推导覆盖配置允许的批量 ID 列表。
+`delete.many`，携带唯一、非空且不超过实际棋子数量上限的 ID 数组与 epoch。服务端在既有串行队列内重验对象权限与 epoch（PL 只允许全部为公共棋子），单次过滤候选房间，保存成功后发布一个快照并清理资源。与单枚删除共用提交和清理路径。保存失败保留原内存及磁盘房间，不提前删除图片。其他 DM 已删除的 ID 忽略；全部已消失则返回当前快照、不新增修订。过期 epoch 整次拒绝。删除后迟到移动不能重新创建棋子。WebSocket 消息容量推导覆盖配置允许的批量 ID 列表。
 
 ## 会话与协议接入
 
 会话存于 Sessions；认证 Token 与每次在线角色对应的随机管理 target 分离。WebSocket 接管先替换归属，再关闭旧连接；message、pong、close 及串行执行均核对当前 socket。既有房间队列仍是业务变更的唯一入口。会话 API 不维护第二份房间状态。
 
-`src/shared/model.ts` 增加 `player.kick`、`players`、`activity` 回执；presence 分别携带普通人数/上限及 DM 人数/上限。`src/shared/session.ts` 定义 HTTP 机器错误码与会话关闭码。新增 GET /api/session 验证 Cookie、只返回角色与昵称并续写 HttpOnly Cookie；POST /api/session 检查实时容量和 ID 后申请 15 秒握手占位；POST /api/logout 支持离线会话及幂等注销。服务端在线维护消息沿用 activity 事件，客户端收到后通过 GET /api/session 续写 Cookie；离线请求不延长固定截止时间。
+`src/shared/model.ts` 定义 `player.kick`、`players`、`activity` 回执；presence 分别携带普通人数/上限及 DM 人数/上限。`src/shared/session.ts` 定义 HTTP 机器错误码与会话关闭码。GET /api/session 验证 Cookie、只返回角色与昵称并续写 HttpOnly Cookie；POST /api/session 检查实时容量和 ID 后申请 15 秒握手占位；POST /api/logout 支持离线会话及幂等注销。服务端在线维护消息沿用 activity 事件，客户端收到后通过 GET /api/session 续写 Cookie；离线请求不延长固定截止时间。
 
 SmalltableClient 的认证请求串行，退出等待在途认证完成后注销；组件卸载不注销。只对临时网络断开最多退避重试十次；终止原因用错误码处理。会话与权限合同见 [安全](SECURITY.md#会话与席位)，界面说明见 [UI](UI.md#登录与会话)。
 
-客户端将连接清理与桌面卸载分离。临时网络错误或满员保留公开快照及组件挂载，先剥除私有字段；终止错误清除整个桌面。具体原因与按钮规则唯一见 [UI 桌面生命周期](UI.md#断线时的桌面生命周期069)。
+客户端将连接清理与桌面卸载分离。临时网络错误或满员保留公开快照及组件挂载，先剥除私有字段；终止错误清除整个桌面。具体原因与按钮规则唯一见 [UI 桌面生命周期](UI.md#断线时的桌面生命周期)。
 
-## 0.7.0 展示与理由字段
+## 恢复展示与投骰理由
 
 controller.recovery 仅驱动无桌面时的恢复展示，沿用 Cookie、错误码与席位处理。LoginShell 负责登录/恢复的共用装饰生命周期；版本取根 package.json。shared/roll-input.ts 复用原 rollDice 做确定性语法验证及输入拆分，不消耗随机源；model 的命令及记录使用同一可选理由校验，app 将它加入公开记录。骰子计算与记录上限保持原约定；当前 schemaVersion 统一为 4。
 

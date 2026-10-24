@@ -1,8 +1,10 @@
-> GitHub MAIN 0.5.6 升级至 0.6.0 的首次交付验证记录。060fix 本次结果见 [当前验证](../VALIDATION.md)。
+> 历史记录：仅用于追溯对应版本，不作为当前操作指南。当前使用见[帮助](../../帮助.md)，开发见[开发导读](../../DEVELOPMENT.md)。
+
+> GitHub MAIN 0.5.6 升级至 0.6.0 的首次交付验证记录。060fix 本次结果见 [060fix 验证](VALIDATION-060fix.md)。
 
 # SMALLTABLE 0.6.0 验证记录
 
-执行日期：2026-10-20（Asia/Shanghai）。唯一开发基线为提供的 MAIN 0.5.6，提交 `038683fd969438f162caf7db32bbd4295b76eb88`；来源核对见 [升级说明](../UPGRADE-0.6.0.md)。以下结果来自 0.6.0 首次交付时的实际执行。
+执行日期：2026-10-20（Asia/Shanghai）。唯一开发基线为提供的 MAIN 0.5.6，提交 `038683fd969438f162caf7db32bbd4295b76eb88`；来源核对见 [升级说明](UPGRADE-0.6.0.md)。以下结果来自 0.6.0 首次交付时的实际执行。
 
 环境：Linux、Node.js v24.19.0、npm 11.9.0；JSDOM 提供组件行为环境，真实 HTTP / WebSocket 和子进程用于服务端测试。
 
@@ -20,7 +22,7 @@
 | 依赖             | package-lock.json 除根项目两处版本号外，解析内容与 MAIN 完全一致                                                                                             |
 | 保留范围         | credentials.ts、instance-lock.ts、PasswordSettings.tsx、password-reset.ts、桌面样式及登录装饰文件与 MAIN 字节一致；Core 全部基线文件与 7 项上游 SHA-256 一致 |
 
-完整测试输出见 [房间测试原始记录](../validation/0.6.0-room-tests.txt)，构建输出见 [构建记录](../validation/0.6.0-build.txt)，终端输出见 [终端记录](../validation/0.6.0-terminal.txt)。房间测试输出中的 simulated disk failure 来自主动注入写盘失败的测试，随后恢复写入并通过，不是未处理的验证失败。
+完整测试输出见 [房间测试原始记录](validation/0.6.0-room-tests.txt)，构建输出见 [构建记录](validation/0.6.0-build.txt)，终端输出见 [终端记录](validation/0.6.0-terminal.txt)。房间测试输出中的 simulated disk failure 来自主动注入写盘失败的测试，随后恢复写入并通过，不是未处理的验证失败。
 
 ## 覆盖的关键行为
 

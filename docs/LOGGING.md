@@ -1,6 +1,6 @@
 # 运行日志
 
-从 0.6.1 开始，服务端使用 `src/server/log.ts` 输出单行 JSON。沿用 Node console，不增加日志依赖、不在程序内创建日志文件、收集器或轮转任务。
+服务端使用 `src/server/log.ts` 输出单行 JSON。沿用 Node console，不增加日志依赖、不在程序内创建日志文件、收集器或轮转任务。
 
 ```json
 {
@@ -26,6 +26,7 @@
 | error    | image.process_failed                             | 图片检查、解码/转码或图片请求处理失败               |
 | error    | websocket.error / server.error                   | WS/WSS 错误或监听后的 HTTP 服务器错误               |
 | error    | config.load_failed / process.shutdown_failed     | 重要配置加载失败或关闭清理失败                      |
+| error    | resource.cleanup_failed / music.failed | 资源清理或音乐处理失败 |
 | fatal    | process.startup_failed                           | 启动失败                                            |
 | fatal    | process.uncaught_exception / unhandled_rejection | 未捕获异常或未处理 Promise 拒绝，记录后以非零码退出 |
 | fatal    | process.abnormal_exit                            | 可执行入口观察到非零退出码                          |
@@ -42,6 +43,6 @@ SIGKILL、断电或运行环境直接终止进程时，程序无法执行退出�
 
 ## 收集与轮转
 
-由启动服务的终端、容器或进程管理器收集 stdout/stderr，并按其能力设置保留期限和轮转。不要把运行日志写入房间存档或备份，也不要提交到 GitHub。0.6.1 不引入额外监控、日志文件配置或自动轮转功能。
+由启动服务的终端、容器或进程管理器收集 stdout/stderr，并按其能力设置保留期限和轮转。不要把运行日志写入房间存档或备份，也不要提交到 GitHub。程序不提供额外监控、日志文件配置或自动轮转功能。
 
-0.6.5 新增 `resource.cleanup_failed` 与 `music.failed`，继续使用固定 JSON 字段和错误码白名单。日志不记录文件名、媒体内容、密码、凭证或私人说明。清理失败不假减容量。
+资源回收失败不减少已用容量；事件同样只使用固定字段和错误码白名单，不记录文件名或媒体内容。

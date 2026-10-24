@@ -1,3 +1,5 @@
+> 历史记录：仅用于追溯对应版本，不作为当前操作指南。当前使用见[帮助](../../帮助.md)，开发见[开发导读](../../DEVELOPMENT.md)。
+
 # SMALLTABLE 0.6.1 验证记录
 
 日期：2026-10-20，Asia/Shanghai。运行环境：Linux，Node.js v24.19.0。版本与基线见 [0.6.1 小更新](UPGRADE-0.6.1.md)。
@@ -18,7 +20,7 @@
 
 执行输出：[构建](validation/0.6.1-build.txt)、[房间套件](validation/0.6.1-room.txt)、[Core](validation/0.6.1-core.txt)、[阶段子集](validation/0.6.1-stage.txt)。
 
-测试整理阶段的 5 项隔离破坏实验不冒充本轮新执行结果，原始记录见 [整理阶段验证](history/VALIDATION-test-cleanup-2026-10-20.md)。Core 全部源码、前端业务与房间存档格式未修改；锁文件只更新根版本号，没有改变依赖解析结果。
+测试整理阶段的 5 项隔离破坏实验不冒充本轮新执行结果，原始记录见 [整理阶段验证](VALIDATION-test-cleanup-2026-10-20.md)。Core 全部源码、前端业务与房间存档格式未修改；锁文件只更新根版本号，没有改变依赖解析结果。
 
 ## 本次边界
 

@@ -1,3 +1,5 @@
+> 历史记录：仅用于追溯对应版本，不作为当前操作指南。当前使用见[帮助](../../帮助.md)，开发见[开发导读](../../DEVELOPMENT.md)。
+
 # 0.6.8 验证与交付复核（2026-10-22）
 
 唯一基线为 `SMALLTABLE-2026-10-22-v0.6.7-完整源码.zip`，SHA-256 见 BASELINE.json。未混合其他源码、GitHub 或 Kimi 部署代码。旧 VALIDATION.md 已逐字节保存为 history/VALIDATION-0.6.7.md；原有历史及证据文件未改写。

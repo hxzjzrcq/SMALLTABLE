@@ -1,3 +1,5 @@
+> 历史记录：仅用于追溯对应版本，不作为当前操作指南。当前使用见[帮助](../../帮助.md)，开发见[开发导读](../../DEVELOPMENT.md)。
+
 # SMALLTABLE 0.7.2 验证记录
 
 日期：2026-10-23。基线仅为 SMALLTABLE-0.7.1-完整源码.zip，SHA-256：70a0ce8b1fbe19a79a50478f5195801b78828b8a6c4caf28cfc9225571b3ddcb。需求与实现分别见根目录任务书及 IMPLEMENTATION-0.7.2.md；执行方自审见 REVIEW-0.7.2.md。

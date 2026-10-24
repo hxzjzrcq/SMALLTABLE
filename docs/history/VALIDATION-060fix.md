@@ -1,8 +1,10 @@
+> 历史记录：仅用于追溯对应版本，不作为当前操作指南。当前使用见[帮助](../../帮助.md)，开发见[开发导读](../../DEVELOPMENT.md)。
+
 # SMALLTABLE 060fix 验证记录
 
 交付日期：2026-10-20（Asia/Shanghai）。npm 版本号：`0.6.0-fix`。
 
-版本来源是 GitHub MAIN 0.5.6（提交 `038683fd969438f162caf7db32bbd4295b76eb88`）升级到 0.6.0，再进行本次构建与文档修正。060fix 直接基线为已交付的 0.6.0 源码 ZIP，SHA-256 为 `6462e0b5702ed84848f43867601a158bc03988d3f78456dc422a0630370aaba7`。升级步骤和变化统一见 [升级说明](../UPGRADE-0.6.0.md)。
+版本来源是 GitHub MAIN 0.5.6（提交 `038683fd969438f162caf7db32bbd4295b76eb88`）升级到 0.6.0，再进行本次构建与文档修正。060fix 直接基线为已交付的 0.6.0 源码 ZIP，SHA-256 为 `6462e0b5702ed84848f43867601a158bc03988d3f78456dc422a0630370aaba7`。升级步骤和变化统一见 [升级说明](UPGRADE-0.6.0.md)。
 
 本页只记录 060fix 本次实际执行的结果。环境为 Linux、Node.js v24.19.0、npm 11.9.0。
 
@@ -21,7 +23,7 @@
 | 前端产物                       | 整个前端 dist/ 与 0.6.0 基线逐字节一致；恢复产物没有改变内嵌属性工具或其它 UI                         |
 | 依赖锁文件                     | 除根项目两处版本号变为 0.6.0-fix，package-lock.json 内容与 0.6.0 基线一致                             |
 
-执行输出分别保存在 [安装](../validation/060fix-install.txt)、[构建](../validation/060fix-build.txt)、[房间测试](../validation/060fix-room-tests.txt)、[Core 测试](../validation/060fix-core-tests.txt) 和 [一致性核对](../validation/060fix-consistency.txt)。保存失败测试主动注入的 simulated disk failure、构建器清理 Zod 注释的提示均不代表测试失败。
+执行输出分别保存在 [安装](validation/060fix-install.txt)、[构建](validation/060fix-build.txt)、[房间测试](validation/060fix-room-tests.txt)、[Core 测试](validation/060fix-core-tests.txt) 和 [一致性核对](validation/060fix-consistency.txt)。保存失败测试主动注入的 simulated disk failure、构建器清理 Zod 注释的提示均不代表测试失败。
 
 完整房间回归继续覆盖密码管理、生命周期和互斥、权限、图片与备份、配置限额、面板更新边界及内嵌工具集成。25 次位置事件中五个无关面板额外执行次数仍各为 0。Core 独立测试此次通过原来缺少浏览器产物的场景；没有删改或跳过该测试。
 

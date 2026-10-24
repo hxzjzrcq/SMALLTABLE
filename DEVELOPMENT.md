@@ -1,14 +1,62 @@
-# SMALLTABLE 0.7.3 开发导读
+# 开发导读
 
-唯一源码基线为 SMALLTABLE-0.7.2-完整源码.zip。本版仅修复连续放置与批量归还过期 ID，见 docs/UPGRADE-0.7.3.md；0.7.2 需求见随包任务书；现行合同由 README 的文档归属表指向，不以历史升级说明拼接现状。
+本文面向维护 SmallTable 0.7.3 的开发者。安装与部署先读[帮助](帮助.md)，修改前读 [AGENTS.md](AGENTS.md) 和[当前架构](docs/ARCHITECTURE.md)。程序版本以 `package.json` 为准，协议与存档结构以 `src/shared/model.ts` 为准。
 
-- 房间结构、公共身份、棋面文字与消息：src/shared/model.ts。普通棋子和公共棋子共用 tokens；公共盒中的剩余身份由 A–Z 减去在桌身份推导。
-- 服务端入口：src/server/app.ts。全部房间变更经过 enqueue；管理操作先保存候选再发布，移动回执只表示接受，同步 revision 与落盘 savedRevision 分开。
-- 权限：src/server/permissions.ts 登记入口，命令分支继续校验对象权限。PL 删除只能处理公共棋子，混入仍存在的普通棋子整体拒绝，已经不存在的 ID 跳过。
-- 会话：src/server/sessions.ts。在线不按用户活动过期；断线起固定 45 分钟恢复资格，15 秒握手占位独立。HTTP 使用 HttpOnly Cookie，浏览器脚本不读取会话凭证。
-- 客户端：src/client/controller.ts 管理连接、上传阶段、最终移动预览与回执；组件不另开网络或落盘通道。Board 管理活动手势和相机，停止手势后使用控制器中的等待回执位置。
-- 隐藏是暂时收起对象，公开列表和坐标继续可见；DM 私有说明始终通过服务端投影过滤。
+## 开发与检查
 
-先 npm ci，再 npm run build。npm test 为完整房间测试；新增 test/iteration-072.test.ts 和 session-controller-068.test.ts 中的 072 用例检查本版行为。浏览器验收脚本为 test/browser-072.ts；SMALLTABLE_CHROMIUM 可指定已有 Chromium。运行结果以 docs/VALIDATION.md 为准。
+安装完整依赖并设置运行环境后，运行 `npm run dev`，访问 <http://127.0.0.1:5173/>。Vite 将 API、图片、音频和 WebSocket 请求转发到本机 3000 端口。生产构建与服务端使用同一套源码。
 
-不要修改 packages/dndroll-core 规则，不添加账号、所有权、隐藏图层、批量移动或另一套桌面引擎。公开包保留通用 START-SMALLTABLE.cmd，不能加入私有地址、口令、运行数据或依赖目录。
+- `npm run build`：构建 Core、检查 TypeScript、打包前端。
+- `npm test`：完整房间测试，须先完成构建。
+- 其他专项、浏览器入口与测试归属见[测试维护](docs/TESTING.md)。根据改动影响选择检查，不把历史测试结果当作本次结果。
+
+## 代码导航
+
+| 需要调整                     | 文件                                                                     |
+| ---------------------------- | ------------------------------------------------------------------------ |
+| 颜色、间距、字体、侧栏宽度   | `src/client/styles.css` 的设计变量及样式                                 |
+| 页面布局和面板顺序           | `src/client/App.tsx`                                                     |
+| 桌面与鼠标操作               | `src/client/components/Board.tsx`                                        |
+| 会话生命周期与席位           | `src/server/sessions.ts`                                                 |
+| UI 操作接口与连接状态        | `src/client/controller.ts`                                               |
+| 数据结构、消息、公开数据投影 | `src/shared/model.ts`                                                    |
+| 通用骰子解析与计算           | `src/shared/dice.ts`                                                     |
+| 服务端同步与 API             | `src/server/app.ts`                                                      |
+| 图片、存档与备份             | `src/server/storage.ts`                                                  |
+| 密码持久化、策略与弱密码表   | `src/server/credentials.ts`、`src/server/weak-passwords.json`            |
+| 数据目录运行互斥与异常恢复   | `src/server/instance-lock.ts`                                            |
+| 终端重置入口                 | `scripts/password-reset.ts`                                              |
+| 配置项                       | `smalltable.config.json`、`src/shared/limits.ts`、`src/server/config.ts` |
+| DNDROLL 规则模块（原样复用） | `packages/dndroll-core/src/`                                             |
+| DNDROLL 嵌入界面与独立样式   | `src/dndroll/`                                                           |
+| 属性工具容器与活动桥接       | `src/client/components/AbilityTool.tsx`                                  |
+
+## 维护边界
+
+房间变更统一经过服务端队列；组件调用 SmalltableClient，不各自建立网络或保存通道。权限由服务端校验，普通玩家接收的数据必须排除 DM 私有字段。私人笔记只存浏览器。DNDROLL 规则继续复用 Core，不在 UI 重写。
+
+当前没有账号系统、棋子所有权、撤销或拖动锁；新增功能须先确认范围。模块职责及后续拆分建议见[架构](docs/ARCHITECTURE.md)。
+
+## 文档维护
+
+按读者任务组织文档。当前说明直接描述现状；功能变化时修改相应段落，不追加“某版本新增”章节。每项事实尽量保留一个主要说明位置，其他文档概述并链接。必要的入门步骤可在 README 简述，完整步骤由帮助维护。
+
+| 文档 | 负责内容 |
+| --- | --- |
+| [README](README.md) | 项目用途、主要功能、最短入门与阅读入口 |
+| [帮助](帮助.md) | 使用者与部署者的安装、操作、升级和排错步骤 |
+| [开发导读](DEVELOPMENT.md) | 代码导航、开发入口与文档维护规则 |
+| [架构](docs/ARCHITECTURE.md) | 模块职责、状态归属、同步和持久化机制 |
+| [配置](docs/CONFIGURATION.md) | 环境变量、JSON 字段、默认限额和派生预算 |
+| [依赖与部署](docs/DEPENDENCIES.md) | 依赖用途、构建产物和部署技术约束 |
+| [安全与密码](docs/SECURITY.md) | 授权、会话、凭证、密码策略与重置 |
+| [UI](docs/UI.md) | 当前界面交互和本机状态维护约定 |
+| [日志](docs/LOGGING.md) | 日志格式、事件及隐私边界 |
+| [测试](docs/TESTING.md) | 如何执行、寻找和维护测试，不存历次结果 |
+| [更新日志](CHANGELOG.md) | 各版本的简要变化和必要的兼容性提示 |
+| [历史档案](docs/history/README.md) | 版本任务书、交接、实现、审查、验证和原始证据 |
+| [AGENTS](AGENTS.md) | 自动化修改的仓库工作要求 |
+
+测试结果须注明版本、命令、环境、范围和未验证项，保存在历史目录。旧任务书不是当前操作手册，计划不能写成已实现。原有历史报告保留当时结论；修正归档路径和链接时不改写测试结果。不要为每次小更新新增一份重复总结。
+
+公开包不得包含 `.env`、实际数据、私人 CMD、密码或个人部署地址。根目录通用 CMD 可公开；依赖及构建产物的交付约定见[帮助](帮助.md#github-发布与验证)。

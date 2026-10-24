@@ -1,3 +1,5 @@
+> 历史记录：仅用于追溯对应版本，不作为当前操作指南。当前使用见[帮助](../../帮助.md)，开发见[开发导读](../../DEVELOPMENT.md)。
+
 # 0.6.9 → 0.7.0 升级
 
 唯一源码基线为 `SMALLTABLE-2026-10-22-v0.6.9-完整源码.zip`。SHA-256 见根目录 `BASELINE.json`；未混合其他版本或 GitHub 代码。
@@ -26,4 +28,4 @@
 
 ## 验证边界
 
-实际结果见 [VALIDATION.md](VALIDATION.md)。Windows CMD 和用户的公网穿透需要在目标环境验收；本次不操作用户部署、不推送 GitHub。
+实际结果见 [VALIDATION.md](VALIDATION-0.7.0.md)。Windows CMD 和用户的公网穿透需要在目标环境验收；本次不操作用户部署、不推送 GitHub。

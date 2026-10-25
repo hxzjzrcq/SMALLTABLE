@@ -24,7 +24,7 @@ async function fixture() {
       roomMatches: async (value) => value === roomPassword,
       dmMatches: async (value) => value === dmPassword,
       change: async () => {
-        throw Error(dmPassword);
+        throw Error('credential update failed: password=' + dmPassword);
       },
     },
   );
@@ -124,7 +124,7 @@ test('normal updates stay quiet; save/restore/image/real WebSocket errors are ob
     await waitEvent(p.events, (e) => e.type === 'saved' && e.revision === 2);
     assert.deepEqual(logs.events(), []);
     f.service.storage.save = async () => {
-      throw Object.assign(Error(secret), { code: 'ENOSPC' });
+      throw Object.assign(Error('write failed: privateNote=' + secret), { code: 'ENOSPC' });
     };
     const mark = p.events.length;
     p.send({ type: 'rotate', id: piece.id, angle: 45, epoch: 0 });

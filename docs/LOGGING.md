@@ -7,11 +7,13 @@
   "time": "2026-10-20T00:00:00.000Z",
   "level": "error",
   "event": "storage.save_failed",
-  "code": "ENOSPC"
+  "code": "ENOSPC",
+  "errorType": "Error",
+  "errorMessage": "ENOSPC: no space left on device"
 }
 ```
 
-`time` 是 UTC ISO 时间；`level` 为 info、warn、error、fatal；`event` 为固定事件名。info 写 stdout，其余写 stderr。按事件可附固定枚举 scope/reason、信号、端口、退出码或白名单内的系统错误码。未识别的错误码不会输出。
+`time` 是 UTC ISO 时间；`level` 为 info、warn、error、fatal；`event` 为固定事件名。info 写 stdout，其余写 stderr。按事件可附固定枚举 scope/reason、信号、端口、退出码及错误摘要 errorType/errorMessage。错误码 code 接受不超过 80 字符的字母开头标识（字母、数字、点、下划线、连字符），不再按已知错误码白名单过滤。
 
 ## 事件
 
@@ -26,7 +28,7 @@
 | error    | image.process_failed                             | 图片检查、解码/转码或图片请求处理失败               |
 | error    | websocket.error / server.error                   | WS/WSS 错误或监听后的 HTTP 服务器错误               |
 | error    | config.load_failed / process.shutdown_failed     | 重要配置加载失败或关闭清理失败                      |
-| error    | resource.cleanup_failed / music.failed | 资源清理或音乐处理失败 |
+| error    | resource.cleanup_failed / music.failed           | 资源清理或音乐处理失败                              |
 | fatal    | process.startup_failed                           | 启动失败                                            |
 | fatal    | process.uncaught_exception / unhandled_rejection | 未捕获异常或未处理 Promise 拒绝，记录后以非零码退出 |
 | fatal    | process.abnormal_exit                            | 可执行入口观察到非零退出码                          |
@@ -35,7 +37,7 @@
 
 ## 隐私与业务边界
 
-日志不接受任意对象展开，不输出原始 Error/message/stack/cause、请求体、请求头、URL、IP、路径、会话标识、房间对象或环境变量。密码、会话凭证、DM 私有说明和玩家私人笔记均不能进入日志；异常正文也可能包含这些数据，因此仅提取白名单内的错误码。已有发给操作用户的响应仍沿用原逻辑，日志不改变权限或存档结果。
+日志只提取异常的 name、message、code 标量字段；字符串及数字等拒绝原因也可记录，不展开未知对象，不输出 stack/cause、请求或房间正文。文本摘要清除控制字符，最多 512 字符；对凭证字段、Authorization/Cookie、Bearer、长十六进制标识、文件路径和引号内的数据片段进行遮蔽。错误说明保留操作原因，调用方不得把密码、会话凭证、DM 私有说明、玩家私人笔记或完整业务输入拼入异常；无标签的任意敏感正文无法靠文本规则可靠识别。已有发给操作用户的响应仍沿用原逻辑，日志不改变权限或存档结果。
 
 日志输出异常被隔离，不向业务抛出，也不递归输出日志系统自己的错误。异常退出处理器仅在服务端可执行入口安装，导入服务函数不会给宿主进程添加全局处理器。
 
@@ -45,4 +47,4 @@ SIGKILL、断电或运行环境直接终止进程时，程序无法执行退出�
 
 由启动服务的终端、容器或进程管理器收集 stdout/stderr，并按其能力设置保留期限和轮转。不要把运行日志写入房间存档或备份，也不要提交到 GitHub。程序不提供额外监控、日志文件配置或自动轮转功能。
 
-资源回收失败不减少已用容量；事件同样只使用固定字段和错误码白名单，不记录文件名或媒体内容。
+资源回收失败不减少已用容量；事件沿用上述错误摘要，不转储媒体内容。

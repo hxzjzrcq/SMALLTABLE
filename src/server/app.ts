@@ -939,6 +939,8 @@ export async function createSmalltable(
       });
     });
   });
+  const COLLECT_INTERVAL = 15 * 60 * 1000;
+  let lastCollectAt = Date.now();
   const maintenance = setInterval(() => {
     const now = sessions.now();
     for (const s of [...sessions.values()]) {
@@ -952,7 +954,12 @@ export async function createSmalltable(
     }
     void enqueue(async () => {
       if (dirty) await persist();
-      await storage.collect(room, music.tracks);
+      const now = Date.now();
+      if (now - lastCollectAt >= COLLECT_INTERVAL) {
+        // Count attempts too: a failed scan must not retry every 10 seconds.
+        lastCollectAt = now;
+        await storage.collect(room, music.tracks);
+      }
     }).catch((error) => logEvent('resource.cleanup_failed', { error }));
   }, 10000);
   maintenance.unref();

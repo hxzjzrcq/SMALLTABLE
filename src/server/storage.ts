@@ -137,7 +137,7 @@ export class Storage {
   }
   temporary(asset: string, owner: string) {
     const id = randomUUID();
-    this.leases.set(id, { asset, owner, expires: Date.now() + 600000 });
+    this.leases.set(id, { asset, owner, expires: Date.now() + 30 * 60 * 1000 });
     return id;
   }
   checkBinding(asset: string, uploadId: string | undefined, owner: string, room: Room) {

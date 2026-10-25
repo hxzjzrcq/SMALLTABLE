@@ -108,13 +108,16 @@ test(
 
 for (const [expression, event] of [
   [
-    "setImmediate(() => { throw Error('private-unhandled-secret-061'); });",
+    "setImmediate(() => { throw Error('worker failed: password=private-unhandled-secret-061'); });",
     'process.uncaught_exception',
   ],
-  ["Promise.reject(Error('private-unhandled-secret-061'));", 'process.unhandled_rejection'],
+  [
+    "Promise.reject(Error('worker failed: password=private-unhandled-secret-061'));",
+    'process.unhandled_rejection',
+  ],
 ])
   test(
-    `fatal handler records ${event} and exits without printing the exception text`,
+    `fatal handler records ${event} and exits with sanitized diagnostic text`,
     { timeout: 10000 },
     async () => {
       const url = pathToFileURL(path.resolve('src/server/log.ts')).href;
@@ -128,6 +131,7 @@ for (const [expression, event] of [
         );
         assert.ok(p.records().every((r) => r.level === 'fatal'));
         assert.ok(!p.text().includes('private-unhandled-secret-061'));
+        assert.match(p.records()[0].errorMessage, /worker failed/);
       } finally {
         await kill(p.child);
       }

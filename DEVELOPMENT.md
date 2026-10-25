@@ -1,6 +1,6 @@
 # 开发导读
 
-本文面向维护 SmallTable 0.7.4 的开发者。安装与部署先读[帮助](帮助.md)，修改前读 [AGENTS.md](AGENTS.md) 和[当前架构](docs/ARCHITECTURE.md)。程序版本以 `package.json` 为准，协议与存档结构以 `src/shared/model.ts` 为准。
+本文面向维护 SmallTable 0.7.5 的开发者。安装与部署先读[帮助](帮助.md)，修改前读 [AGENTS.md](AGENTS.md) 和[当前架构](docs/ARCHITECTURE.md)。程序版本以 `package.json` 为准，协议与存档结构以 `src/shared/model.ts` 为准。
 
 ## 开发与检查
 

@@ -37,28 +37,21 @@ const reasons = new Set([
   'slow_client',
   'heartbeat',
 ]);
-const errorCodes = new Set([
-  'EACCES',
-  'EPERM',
-  'ENOENT',
-  'ENOSPC',
-  'EIO',
-  'EROFS',
-  'EISDIR',
-  'ENOTDIR',
-  'EMFILE',
-  'ENFILE',
-  'EADDRINUSE',
-  'EADDRNOTAVAIL',
-  'ECONNRESET',
-  'EPIPE',
-  'ETIMEDOUT',
-  'ERR_HTTP_SERVER_CLOSED',
-  'WS_ERR_UNSUPPORTED_MESSAGE_LENGTH',
-  'WS_ERR_INVALID_UTF8',
-  'WS_ERR_UNEXPECTED_RSV_1',
-  'WS_ERR_UNEXPECTED_RSV_2_3',
-]);
+/** Keep a bounded diagnostic, without quoted input, credentials or multiline payloads. */
+function diagnostic(text: string) {
+  return text
+    .replace(/\b(?:authorization|(?:set-)?cookie)\s*[:=]\s*[^\r\n]+/gi, '[redacted header]')
+    .replace(/\bBearer\s+[^\s,;]+/gi, 'Bearer [redacted]')
+    .replace(
+      /((?:password|passwd|token|secret|session(?:id)?|tt_room|dmPrivate|privateNotes?|note|密码|口令|令牌|私有说明|私人笔记)["']?\s*[:=]\s*)(?:"(?:\\.|[^"\\\r\n])*"|'(?:\\.|[^'\\\r\n])*'|[^\r\n,;]+)/gi,
+      '$1[redacted]',
+    )
+    .replace(/"(?:\\.|[^"\\\r\n])*"|'(?:\\.|[^'\\\r\n])*'|`(?:\\.|[^`\\\r\n])*`/g, '[quoted]')
+    .replace(/(?:[A-Za-z]:[\\/]|\/)[^\s"'`<>:,;]+/g, '[path]')
+    .replace(/\b[a-f0-9]{48,}\b/gi, '[redacted id]')
+    .replace(/[\x00-\x1f\x7f]/g, ' ')
+    .slice(0, 512);
+}
 interface Details {
   error?: unknown;
   scope?: 'login' | 'dm' | 'password_change' | 'upload' | 'ws' | 'roll';
@@ -93,9 +86,21 @@ export function logEvent(event: LogEvent, details: Details = {}) {
       record.exitCode = details.exitCode;
     if (Number.isInteger(details.port) && details.port! >= 1 && details.port! <= 65535)
       record.port = details.port;
-    // Even error.code is untrusted. Only known operational codes are useful here.
-    const code = (details.error as NodeJS.ErrnoException | undefined)?.code;
-    if (typeof code === 'string' && errorCodes.has(code)) record.code = code;
+    const error = details.error;
+    if (error !== undefined) {
+      // Only scalar diagnostic fields; never stringify unknown objects, stack or cause.
+      const fields =
+        error !== null && typeof error === 'object'
+          ? (error as { name?: unknown; message?: unknown; code?: unknown })
+          : undefined;
+      record.errorType = diagnostic(typeof fields?.name === 'string' ? fields.name : typeof error);
+      const message = fields ? fields.message : error;
+      if (typeof message === 'string') record.errorMessage = diagnostic(message);
+      else if (message === null || typeof message === 'number' || typeof message === 'boolean')
+        record.errorMessage = String(message);
+      if (typeof fields?.code === 'string' && /^[A-Za-z][A-Za-z0-9_.-]{0,79}$/.test(fields.code))
+        record.code = diagnostic(fields.code);
+    }
     const line = JSON.stringify(record);
     if (record.level === 'info') console.log(line);
     else console.error(line);

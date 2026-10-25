@@ -1,6 +1,6 @@
 # 测试维护
 
-本文说明 SmallTable 0.7.4 的测试入口、归属及维护方法。文件名中的版本数字表示用例来源，不表示它只检查旧版本。实际执行结果按版本保存在[历史档案](history/README.md#验证记录)，不在本文累计。
+本文说明 SmallTable 0.7.5 的测试入口、归属及维护方法。文件名中的版本数字表示用例来源，不表示它只检查旧版本。实际执行结果按版本保存在[历史档案](history/README.md#验证记录)，不在本文累计。
 
 ## 基本执行
 
@@ -91,3 +91,5 @@
 ## 自由角色卡
 
 构建后执行 `npm run test:character-card`，包括原生 Node 的 `character-card-core.test.mjs`、工具生命周期/生产资源与 CSP 的 `character-card-tool.test.ts` 及真实双连接、手机触摸模拟的 `browser-character-card-074.ts`。嵌入工具修改仍执行 `npm run test:stage`；不无故重跑所有房间或上游规则测试。角色数据私有性、关闭重开、JSON/TXT、拖拽及内外层 Escape 在新浏览器专项验证；实际结果见历史验证记录。
+
+资源回收时间专项为 `resource-maintenance.test.ts`：以可控时钟驱动真实维护回调，检查 15 分钟尝试间隔、失败节奏和 30 分钟临时引用边界。

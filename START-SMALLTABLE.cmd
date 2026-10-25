@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
-title SMALLTABLE 0.7.4 - Server
+title SMALLTABLE 0.7.5 - Server
 cd /d "%~dp0"
 if errorlevel 1 goto :bad_directory
 if not exist "package.json" goto :missing_project
@@ -12,7 +12,7 @@ if not exist "node_modules\tsx\package.json" goto :missing_deps
 if not exist "dist\index.html" goto :missing_build
 
 echo ==============================================
-echo    SMALLTABLE 0.7.4 - Local server
+echo    SMALLTABLE 0.7.5 - Local server
 echo ==============================================
 echo Working directory: %CD%
 echo Host and port: use your .env or environment settings.

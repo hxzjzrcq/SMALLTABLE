@@ -275,7 +275,7 @@ test('resource leases cancel/expire, survive shared references and release last 
     assert.equal(await f.service.storage.usage(), 0);
     const c = await (await post(f, dm, '/api/image/token', image)).json();
     const now = Date.now;
-    Date.now = () => now() + 600001;
+    Date.now = () => now() + 30 * 60 * 1000;
     try {
       await f.service.storage.collect(f.service.getRoom(), f.service.music.tracks);
     } finally {

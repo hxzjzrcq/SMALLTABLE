@@ -72,10 +72,10 @@ async function command(p: Peer, c: unknown, type: ServerEvent['type'] = 'snapsho
 }
 const current = (f: Awaited<ReturnType<typeof setup>>) => f.service.getRoom();
 
-test('072 labels, nickname units, schema 4 split pools and immutable public invariants', () => {
-  for (const label of ['甲', '甲乙丙丁', 'AB12', '𠀀𠀁𠀂𠀃', ' a '])
+test('072 labels, nickname units, schema 5 split pools and immutable public invariants', () => {
+  for (const label of ['', '    ', '甲', '甲乙丙丁', 'AB12', '𠀀𠀁𠀂𠀃', ' a '])
     assert.ok(tokenLabel.safeParse(label).success);
-  for (const label of ['', '    ', '12345', '甲乙丙丁戊', 'a\nb', 'a\u0000', 'a\t'])
+  for (const label of ['12345', '甲乙丙丁戊', 'a\nb', 'a\u0000', 'a\t'])
     assert.ok(!tokenLabel.safeParse(label).success, label);
   assert.equal(temporaryId('一二三四五六七八').valid, true);
   assert.equal(temporaryId('ABCDEFGHIJKLMNOP').valid, true);
@@ -100,7 +100,7 @@ test('072 labels, nickname units, schema 4 split pools and immutable public inva
     Object.assign(invalid.tokens[255], patch);
     assert.throws(() => parseRoom(invalid));
   }
-  assert.throws(() => parseRoom({ ...seed, schemaVersion: 3 }), /版本 4/);
+  assert.throws(() => parseRoom({ ...seed, schemaVersion: 3 }), /版本 6/);
   assert.ok(backupLimits(DEFAULT_CAPABILITIES).roomBytes > 281 * 65536);
   assert.ok(
     tokenLabel.safeParse(
@@ -371,13 +371,13 @@ test('072 old disk/ZIP schema is clearly rejected without changing existing byte
       body: new Uint8Array(zip.toBuffer()),
     });
     assert.equal(res.status, 400);
-    assert.match((await res.json()).error, /要求版本 4/);
+    assert.match((await res.json()).error, /要求版本 6/);
     assert.deepEqual(current(f), before);
     assert.deepEqual(await readFile(path.join(f.dir, 'room.json')), disk);
     await writeFile(path.join(oldDir, 'room.json'), old);
     await assert.rejects(
       () => createSmalltable({ ...f.cfg, dataDir: oldDir }, f.access),
-      /不兼容.*要求版本 4/,
+      /不兼容.*要求版本 6/,
     );
     assert.deepEqual(await readFile(path.join(oldDir, 'room.json')), old);
   } finally {

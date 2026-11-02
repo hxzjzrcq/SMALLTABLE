@@ -987,3 +987,24 @@ footer {
     display: none;
   }
 }
+
+.token-context-menu {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #596b80;
+  border-radius: 6px;
+  width: 210px;
+  box-shadow: 0 3px 12px #0004;
+}
+
+.initiative-details form {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+}
+.initiative-details label {
+  display: grid;
+  gap: 4px;
+}

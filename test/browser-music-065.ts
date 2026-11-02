@@ -120,6 +120,14 @@ try {
   const blocked = await accept.getByText('本地：受浏览器阻止', { exact: true }).isVisible();
   if (blocked) await accept.getByRole('button', { name: '点击播放', exact: true }).click();
   await waitText(accept, '本地：播放中');
+  const beforeHide = (await audioState(accept))!.time;
+  await accept.getByRole('button', { name: '音乐', exact: true }).click();
+  assert.equal(await accept.locator('.music-panel').isVisible(), false);
+  await accept.waitForTimeout(400);
+  assert.equal((await audioState(accept))!.paused, false);
+  assert.ok((await audioState(accept))!.time > beforeHide);
+  await accept.getByRole('button', { name: '音乐', exact: true }).click();
+
   await dm.waitForFunction(() =>
     /本地：(播放中|受浏览器阻止)/.test(document.body.textContent ?? ''),
   );

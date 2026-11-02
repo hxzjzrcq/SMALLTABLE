@@ -3,6 +3,7 @@ import { sortInitiative, type InitiativeEntry } from '../../shared/model';
 import type { SmalltableClient } from '../controller';
 
 export const InitiativePanel = memo(function InitiativePanel({
+  dm = false,
   maxEntries,
   entries,
   ascending,
@@ -10,6 +11,7 @@ export const InitiativePanel = memo(function InitiativePanel({
   connected,
   onClose,
 }: {
+  dm?: boolean;
   entries: InitiativeEntry[];
   ascending: boolean;
   maxEntries?: number;
@@ -84,7 +86,10 @@ export const InitiativePanel = memo(function InitiativePanel({
       </form>
       <div className="initiative-list">
         {sortInitiative(entries, ascending).map((entry) => (
-          <InitiativeRow key={entry.id} entry={entry} actions={actions} connected={connected} />
+          <div key={entry.id}>
+            <InitiativeRow entry={entry} actions={actions} connected={connected} />
+            {dm && connected && <InitiativeDetails entry={entry} actions={actions} />}
+          </div>
         ))}
         {!entries.length && <p className="empty">填写名字与数字，大家共同查看和编辑。</p>}
       </div>
@@ -158,6 +163,66 @@ function InitiativeRow({
       >
         ×
       </button>
+    </div>
+  );
+}
+
+function InitiativeDetails({
+  entry,
+  actions,
+}: {
+  entry: InitiativeEntry;
+  actions: SmalltableClient;
+}) {
+  const [open, setOpen] = useState(false),
+    [hp, setHp] = useState(entry.hp ?? ''),
+    [other, setOther] = useState(entry.other ?? '');
+  return (
+    <div className="initiative-details">
+      <button
+        aria-label={`展开 ${entry.name} 的DM数据`}
+        aria-expanded={open}
+        onClick={() => {
+          if (!open) {
+            setHp(entry.hp ?? '');
+            setOther(entry.other ?? '');
+          }
+          setOpen(!open);
+        }}
+      >
+        {open ? '▾' : '▸'}
+      </button>
+      {open && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (actions.saveInitiativeDetails(entry.id, hp, other)) setOpen(false);
+          }}
+        >
+          <label>
+            血量
+            <input
+              aria-label="血量"
+              value={hp}
+              maxLength={128}
+              onChange={(e) => setHp(e.target.value)}
+            />
+          </label>
+          <label>
+            其他数据
+            <textarea
+              aria-label="其他数据"
+              value={other}
+              maxLength={1024}
+              onChange={(e) => setOther(e.target.value)}
+            />
+          </label>
+          <button>保存</button>
+          <button type="button" onClick={() => setOpen(false)}>
+            取消
+          </button>
+        </form>
+      )}
     </div>
   );
 }

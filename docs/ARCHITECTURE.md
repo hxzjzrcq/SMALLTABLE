@@ -1,6 +1,6 @@
 # 当前架构
 
-适用于 SMALLTABLE 0.7.5。运行与功能入口见 [README](../README.md)，依赖和部署约定见 [DEPENDENCIES](DEPENDENCIES.md)。
+适用于 SMALLTABLE 0.7.7。运行与功能入口见 [README](../README.md)，依赖和部署约定见 [DEPENDENCIES](DEPENDENCIES.md)。
 
 ## 模块与数据归属
 
@@ -29,7 +29,7 @@
 
 凭证、密码政策、授权清单及撤权行为的唯一主要说明见 [安全](SECURITY.md)。Config 不处理密码，Storage 不接触凭证；组装层拥有 CredentialStore 和运行互斥的生命周期。Storage 接口为 `{ dataDir, images, resourceBytes, backup, parse }`，parse 在外层绑定当前限额。配置及预算说明见 [配置](CONFIGURATION.md)。
 
-schemaVersion 为 4；`parseRoom` 明确拒绝其他版本，不执行迁移。磁盘加载和 ZIP 恢复共用该入口。棋子、公开注释、投骰记录、先攻表及共享直线进入房间快照和备份；清空画线仅 DM 可用。
+schemaVersion 为 6；`parseRoom` 明确拒绝其他版本，不执行迁移。磁盘加载和 ZIP 恢复共用该入口。棋子、公开注释、投骰记录、先攻表及共享直线进入房间快照和备份；清空画线仅 DM 可用。
 
 私人笔记只存玩家浏览器；相机、面板显隐和未提交的交互预览属于本机状态。Board 本地预览画线，松开后提交一次；棋子拖动每秒最多发送 10 次中间位置，松手发送带 moveId 的最终位置。控制器保留最终预览，匹配 move.ack 后结束；2 秒超时回到最近权威位置。回执不等于落盘。
 
@@ -97,7 +97,7 @@ SmalltableClient 的认证请求串行，退出等待在途认证完成后注销
 
 ## 恢复展示与投骰理由
 
-controller.recovery 仅驱动无桌面时的恢复展示，沿用 Cookie、错误码与席位处理。LoginShell 负责登录/恢复的共用装饰生命周期；版本取根 package.json。shared/roll-input.ts 复用原 rollDice 做确定性语法验证及输入拆分，不消耗随机源；model 的命令及记录使用同一可选理由校验，app 将它加入公开记录。骰子计算与记录上限保持原约定；当前 schemaVersion 统一为 4。
+controller.recovery 仅驱动无桌面时的恢复展示，沿用 Cookie、错误码与席位处理。LoginShell 负责登录/恢复的共用装饰生命周期；版本取根 package.json。shared/roll-input.ts 复用原 rollDice 做确定性语法验证及输入拆分，不消耗随机源；model 的命令及记录使用同一可选理由校验，app 将它加入公开记录。骰子计算与记录上限保持原约定；当前 schemaVersion 统一为 6。
 
 ## 公共身份与隐藏状态
 
@@ -111,6 +111,9 @@ UploadStatus 只呈现控制器的实际上传阶段；XMLHttpRequest 的上传�
 
 src/character-card/ 是从独立自由角色卡引入的本机工具：core.js 负责示意卡、整数求和、存档校验与 TXT；drag.js 负责本机排序和拖动反馈；app.js 负责单卡 DOM 编辑、文件导入/下载；style.css 为原始样式，embedded.css 只作内嵌视觉适配，host.js 只发送无内容活动及关闭消息。
 
-character-card.html 是第三个 Vite 页面入口。源码脚本与样式均外置，构建后受既有同源 CSP 约束，不开放 inline script。CharacterCardTool.tsx 管理模态与 iframe 挂载，沿用 SmalltableClient.activity()，不建立网络或持久化通道。卡片没有进入 src/shared/model.ts、房间队列、广播、日志或房间 ZIP；房间 schemaVersion 仍为 4，角色卡 JSON 独立使用 format=free-character-card、schemaVersion=1。
+character-card.html 是第三个 Vite 页面入口。源码脚本与样式均外置，构建后受既有同源 CSP 约束，不开放 inline script。CharacterCardTool.tsx 管理模态与 iframe 挂载，沿用 SmalltableClient.activity()，不建立网络或持久化通道。卡片没有进入 src/shared/model.ts、房间队列、广播、日志或房间 ZIP；房间 schemaVersion 为 6，角色卡 JSON 独立使用 format=free-character-card、schemaVersion=1。
 
 关闭窗口只隐藏，不重建 iframe；房间视图卸载会移除 iframe。纯文本占位提示属于 UI，不写入状态；默认计算项目与标签属于示例数据。存档合计从计算行派生，不信任缓存总数。导入逐项校验并整体替换，不迁移其他格式；具体使用及保存限制见帮助。
+
+
+先攻条目附带 DM 专用 hp/other 文本。服务器投影去除普通玩家的这两个字段，断线立即清除客户端缓存；DM 展开后以草稿编辑并保存，公开编辑保留私有字段。

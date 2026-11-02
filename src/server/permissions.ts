@@ -2,6 +2,8 @@ import type { Command } from '../shared/model.js';
 type Role = 'player' | 'dm';
 type Principal = { dm: boolean };
 export const WS_PERMISSIONS = {
+  'initiative.details': 'dm',
+  'token.hidden.many': 'dm',
   activity: 'player',
   'public.take': 'player',
   'token.label': 'player',

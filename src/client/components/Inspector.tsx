@@ -206,7 +206,7 @@ function TokenEditor({
         if (!latest) return;
         const label = tokenLabel.safeParse(draft.label);
         if (!label.success) {
-          setError('棋面文字须为 1–4 个字符，不能含换行或控制字符');
+          setError('棋面文字须为 0–4 个字符，不能含换行或控制字符');
           return;
         }
         actions.send({

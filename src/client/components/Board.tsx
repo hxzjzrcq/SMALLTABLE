@@ -12,6 +12,7 @@ import {
 } from '../camera';
 export type BoardView = { placement: () => Point | null; locate: (point: Point) => void };
 export function Board({
+  dm = false,
   room,
   selected,
   onSelect,
@@ -25,6 +26,7 @@ export function Board({
   viewportRef,
   pendingMoves = {},
 }: {
+  dm?: boolean;
   room: View;
   selected: readonly string[];
   onSelect: (id: string | null, additive?: boolean) => void;
@@ -38,6 +40,20 @@ export function Board({
   viewportRef?: RefObject<BoardView | null>;
   pendingMoves?: Record<string, { x: number; y: number }>;
 }) {
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    const close = () => setMenu(null);
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+    };
+    window.addEventListener('pointerdown', close);
+    window.addEventListener('keydown', key);
+    return () => {
+      window.removeEventListener('pointerdown', close);
+      window.removeEventListener('keydown', key);
+    };
+  }, []);
+  useEffect(() => setMenu(null), [connected, epoch, dm]);
   const selection = new Set(selected);
   const map = room.maps.find((m) => m.id === room.currentMapId);
   const svg = useRef<SVGSVGElement>(null),
@@ -324,6 +340,45 @@ export function Board({
         : undefined;
   return (
     <div ref={host} className={`board ${tool}`}>
+      {menu && (
+        <div
+          role="menu"
+          className="token-context-menu"
+          style={{ position: 'fixed', left: menu.x, top: menu.y, zIndex: 1000 }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          {dm && (
+            <button
+              role="menuitem"
+              disabled={!connected || !room.tokens.some((t) => selection.has(t.id) && !t.publicId)}
+              onClick={() => {
+                actions.setHiddenMany(
+                  room.tokens.filter((t) => selection.has(t.id) && !t.publicId).map((t) => t.id),
+                  true,
+                );
+                setMenu(null);
+              }}
+            >
+              隐藏（{room.tokens.filter((t) => selection.has(t.id) && !t.publicId).length}）
+            </button>
+          )}
+          <button
+            role="menuitem"
+            disabled={
+              !connected ||
+              !selected.length ||
+              (!dm && room.tokens.some((t) => selection.has(t.id) && !t.publicId))
+            }
+            onClick={() => {
+              setMenu(null);
+              if (confirm(`删除或归还选中的 ${selected.length} 枚棋子？`))
+                actions.deleteTokens([...selected]);
+            }}
+          >
+            删除 / 归还（{selected.length}）
+          </button>
+        </div>
+      )}
       <div className="board-zoom" aria-label="相机缩放">
         <button
           aria-label="放大视图"
@@ -470,7 +525,17 @@ export function Board({
               transform={`translate(${p.x} ${p.y}) rotate(${t.angle})`}
               onPointerDown={(e) => {
                 e.stopPropagation();
+                if (e.button === 2) return;
                 start(e, t.id);
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!selection.has(t.id)) onSelect(t.id);
+                setMenu({
+                  x: Math.max(0, Math.min(e.clientX, window.innerWidth - 220)),
+                  y: Math.max(0, Math.min(e.clientY, window.innerHeight - 110)),
+                });
               }}
               className="board-token"
               aria-pressed={selection.has(t.id)}

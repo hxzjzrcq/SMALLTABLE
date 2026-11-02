@@ -24,6 +24,8 @@ export default function App() {
     [fit, setFit] = useState(0),
     [abilityOpen, setAbilityOpen] = useState(false),
     [characterCardOpen, setCharacterCardOpen] = useState(false),
+    [musicOpen, setMusicOpen] = useState(true),
+    [musicPending, setMusicPending] = useState(false),
     [initiativeOpen, setInitiativeOpen] = useState(false),
     [drawColor, setDrawColor] = useState<Drawing['color']>('#d33b32'),
     [panelOpen, setPanelOpen] = useState(true),
@@ -32,7 +34,6 @@ export default function App() {
   const closeCharacterCard = useCallback(() => setCharacterCardOpen(false), []);
   const closeAbility = useCallback(() => setAbilityOpen(false), []);
   const boardView = useRef<BoardView | null>(null);
-  const previousHidden = useRef(new Set<string>());
   const pendingSelection = useRef<string | null>(null);
   const select = useCallback((id: string | null, additive = false) => {
     pendingSelection.current = null;
@@ -44,10 +45,7 @@ export default function App() {
       pendingSelection.current = null;
       setSelectedIds([]);
     } else {
-      const hidden = new Set(room?.tokens.filter((t) => t.hidden).map((t) => t.id));
-      const newlyHidden = new Set([...hidden].filter((id) => !previousHidden.current.has(id)));
-      previousHidden.current = hidden;
-      const ids = new Set(room?.tokens.filter((t) => !newlyHidden.has(t.id)).map((t) => t.id));
+      const ids = new Set(room?.tokens.map((t) => t.id));
       const pending = pendingSelection.current;
       if (pending && ids.has(pending)) {
         pendingSelection.current = null;
@@ -195,9 +193,15 @@ export default function App() {
         </div>
         <div className="header-actions">
           {room && (
-            <button aria-expanded={initiativeOpen} onClick={() => setInitiativeOpen((v) => !v)}>
-              先攻盘
-            </button>
+            <>
+              {' '}
+              <button aria-expanded={musicOpen} onClick={() => setMusicOpen((v) => !v)}>
+                音乐{musicPending ? ' · 待处理' : ''}
+              </button>
+              <button aria-expanded={initiativeOpen} onClick={() => setInitiativeOpen((v) => !v)}>
+                先攻盘
+              </button>
+            </>
           )}
           {room && <button onClick={() => setAbilityOpen(true)}>属性工具</button>}
           <button onClick={() => setCharacterCardOpen(true)}>角色卡管理</button>
@@ -278,6 +282,8 @@ export default function App() {
           </div>
         </nav>
         <MusicPanel
+          visible={musicOpen}
+          onPendingChange={setMusicPending}
           consent={state.musicConsent}
           music={state.music}
           dm={dm}
@@ -288,6 +294,7 @@ export default function App() {
         <main className="workspace">
           {initiativeOpen && (
             <InitiativePanel
+              dm={dm}
               entries={room.initiative}
               ascending={room.initiativeAscending}
               maxEntries={caps?.maxInitiative}
@@ -297,6 +304,7 @@ export default function App() {
             />
           )}
           <Board
+            dm={dm}
             viewportRef={boardView}
             pendingMoves={state.pendingMoves}
             room={room}
@@ -360,9 +368,24 @@ export default function App() {
                     actions.send({ type: 'public.take', publicId, ...p, epoch: state.epoch });
                   }}
                 />
-                {selectedIds.length > 1 && (
+                {selectedIds.length > 0 && (
                   <section className="panel" role="status">
                     已选 {selectedIds.length} 枚棋子
+                    {dm &&
+                      [true, false].map((hidden) => {
+                        const ids = selectedIds.filter((id) =>
+                          room.tokens.some((t) => t.id === id && !t.publicId),
+                        );
+                        return (
+                          <button
+                            key={String(hidden)}
+                            disabled={!connected || !ids.length}
+                            onClick={() => actions.setHiddenMany(ids, hidden)}
+                          >
+                            {hidden ? '隐藏' : '显形'}选中棋子（{ids.length}）
+                          </button>
+                        );
+                      })}
                     <button
                       disabled={
                         !connected ||

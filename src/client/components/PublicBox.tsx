@@ -43,7 +43,7 @@ export function LabelEditor({
       }}
     >
       <label>
-        棋面文字（1–4 字符）
+        棋面文字（0–4 字符）
         <input
           value={label}
           onChange={(e) => {

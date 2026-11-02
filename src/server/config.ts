@@ -45,7 +45,7 @@ export function backupLimits(caps: Capabilities) {
     (caps.maxTokens + 26) * 65536 +
     caps.maxRolls * 65536 +
     caps.maxNames * 1024 +
-    caps.maxInitiative * 2048 +
+    caps.maxInitiative * 8192 +
     caps.maxDrawings * 1024 +
     caps.maxMaps * 8192;
   // Include ZIP headers and worst-case compression overhead as well as content.

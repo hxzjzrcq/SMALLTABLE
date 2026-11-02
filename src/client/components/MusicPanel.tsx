@@ -20,6 +20,8 @@ function remembered(pushId: string | null) {
   return null;
 }
 export function MusicPanel({
+  visible = true,
+  onPendingChange,
   music,
   consent,
   dm,
@@ -27,6 +29,8 @@ export function MusicPanel({
   caps,
   actions,
 }: {
+  visible?: boolean;
+  onPendingChange?: (pending: boolean) => void;
   music?: MusicSnapshot;
   consent?: { pushId: string };
   dm: boolean;
@@ -144,9 +148,16 @@ export function MusicPanel({
       audio.current.muted = muted;
     }
   }, [volume, muted]);
+  useEffect(() => {
+    onPendingChange?.(!!track && !choice);
+  }, [track, choice, onPendingChange]);
   if (!music) return null;
   return (
-    <section className="music-panel" aria-label="房间音乐">
+    <section
+      style={{ display: visible ? undefined : 'none' }}
+      className="music-panel"
+      aria-label="房间音乐"
+    >
       <div className="button-row">
         <strong>房间音乐</strong>
         <span>

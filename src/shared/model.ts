@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { rollReason } from './roll-input.js';
 import { DEFAULT_CAPABILITIES, type Capabilities } from './limits.js';
 export type { Capabilities } from './limits.js';
-export const SCHEMA_VERSION = 4 as const;
+export const SCHEMA_VERSION = 6 as const;
 export const bytes = (s: string) => new TextEncoder().encode(s).length;
 export const text = (max: number) => z.string().refine((s) => bytes(s) <= max, '文字超过字节上限');
 export const WORLD_LIMIT = 32768;
@@ -15,8 +15,8 @@ export const tokenLabel = z
   .refine((value) => !/[\p{Cc}\p{Zl}\p{Zp}]/u.test(value), '不能含换行或控制字符')
   .trim()
   .refine(
-    (value) => Array.from(value).length >= 1 && Array.from(value).length <= 4,
-    '棋面文字须为 1–4 个字符，不能含换行或控制字符',
+    (value) => Array.from(value).length <= 4,
+    '棋面文字须为 0–4 个字符，不能含换行或控制字符',
   );
 export function nextLabel(tokens: { label: string }[]) {
   const used = new Set(tokens.map((t) => t.label));
@@ -101,6 +101,8 @@ export const initiativeEntrySchema = z
     id: z.string().uuid(),
     name: text(128).refine((s) => s.trim().length > 0, '请输入名字'),
     value: z.number().finite().min(-1_000_000).max(1_000_000),
+    hp: text(128).optional(),
+    other: text(1024).optional(),
   })
   .strict();
 export type InitiativeEntry = z.infer<typeof initiativeEntrySchema>;
@@ -179,7 +181,7 @@ export function parseRoom(input: unknown, caps: Capabilities = DEFAULT_CAPABILIT
     !('schemaVersion' in input) ||
     input.schemaVersion !== SCHEMA_VERSION
   )
-    throw Error('不兼容的房间 schema，要求版本 4；不执行迁移');
+    throw Error('不兼容的房间 schema，要求版本 6，请重置测试数据；不执行迁移');
   return createRoomSchema(caps).parse(input);
 }
 export type Room = z.infer<typeof roomSchema>;
@@ -204,12 +206,36 @@ export const publicToken = (t: Token, dm: boolean): PublicToken => {
 };
 export const project = (room: Room, dm: boolean): View => ({
   ...room,
+  initiative: room.initiative.map(({ hp, other, ...entry }) =>
+    dm ? { ...entry, hp, other } : entry,
+  ),
   tokens: room.tokens.map((t) => publicToken(t, dm)),
 });
 export const measure = (a: { x: number; y: number }, b: { x: number; y: number }, cell: number) =>
   Math.round(Math.hypot(b.x - a.x, b.y - a.y) / cell);
 export const createCommandSchema = (caps: Capabilities) =>
   z.discriminatedUnion('type', [
+    z
+      .object({
+        type: z.literal('initiative.details'),
+        id: z.string().uuid(),
+        hp: text(128),
+        other: text(1024),
+        epoch: z.number().int().nonnegative(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal('token.hidden.many'),
+        ids: z
+          .array(z.string().uuid())
+          .min(1)
+          .max(caps.maxTokens + 26)
+          .refine((ids) => new Set(ids).size === ids.length, '棋子 ID 重复'),
+        hidden: z.boolean(),
+        epoch: z.number().int().nonnegative(),
+      })
+      .strict(),
     z
       .object({
         type: z.literal('public.take'),
@@ -238,7 +264,7 @@ export const createCommandSchema = (caps: Capabilities) =>
     z
       .object({
         type: z.literal('initiative.put'),
-        entry: initiativeEntrySchema,
+        entry: initiativeEntrySchema.omit({ hp: true, other: true }),
         epoch: z.number().int().nonnegative(),
       })
       .strict(),

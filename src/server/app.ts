@@ -757,7 +757,10 @@ export async function createSmalltable(
               snapshots();
               return;
             }
-            if (c.type.startsWith('initiative.') || c.type.startsWith('drawing.')) {
+            if (
+              (c.type.startsWith('initiative.') && c.type !== 'initiative.details') ||
+              c.type.startsWith('drawing.')
+            ) {
               // Narrow the union through exact discriminants; validate before all mutations.
               if ('epoch' in c && c.epoch !== epoch) {
                 snapshot(s);
@@ -770,7 +773,7 @@ export async function createSmalltable(
                     if (room.initiative.length >= cfg.caps.maxInitiative)
                       throw Error(`先攻条目已达 ${cfg.caps.maxInitiative}`);
                     room.initiative.push(c.entry);
-                  } else room.initiative[i] = c.entry;
+                  } else room.initiative[i] = { ...room.initiative[i], ...c.entry };
                   break;
                 }
                 case 'initiative.delete':
@@ -800,6 +803,21 @@ export async function createSmalltable(
             }
             const candidate = structuredClone(room);
             switch (c.type) {
+              case 'initiative.details': {
+                if (c.epoch !== epoch) throw Error('桌面已更新');
+                const entry = candidate.initiative.find((e) => e.id === c.id);
+                if (!entry) throw Error('先攻条目不存在');
+                entry.hp = c.hp;
+                entry.other = c.other;
+                break;
+              }
+              case 'token.hidden.many': {
+                if (c.epoch !== epoch) throw Error('桌面已更新');
+                const ids = new Set(c.ids);
+                for (const t of candidate.tokens)
+                  if (ids.has(t.id) && !t.publicId) t.hidden = c.hidden;
+                break;
+              }
               case 'public.take':
                 if (c.epoch !== epoch) throw Error('桌面已更新');
                 if (candidate.tokens.some((t) => t.publicId === c.publicId))

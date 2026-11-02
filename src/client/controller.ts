@@ -161,6 +161,7 @@ export class SmalltableClient {
         keepDesktop && this.state.room
           ? {
               ...this.state.room,
+              initiative: this.state.room.initiative.map(({ hp, other, ...entry }) => entry),
               tokens: this.state.room.tokens.map(({ secret, ...token }) => token),
             }
           : null,
@@ -365,6 +366,7 @@ export class SmalltableClient {
             room: {
               ...this.state.room,
               revision: event.revision,
+              initiative: this.state.room.initiative.map(({ hp, other, ...entry }) => entry),
               tokens: this.state.room.tokens.map((t) =>
                 t.id === event.id ? { ...t, x: event.x!, y: event.y! } : t,
               ),
@@ -386,6 +388,7 @@ export class SmalltableClient {
             room: {
               ...this.state.room,
               revision: event.revision,
+              initiative: this.state.room.initiative.map(({ hp, other, ...entry }) => entry),
               tokens: this.state.room.tokens.map((t) =>
                 t.id === event.token.id ? event.token : t,
               ),
@@ -498,6 +501,10 @@ export class SmalltableClient {
       ? copyId
       : null;
   };
+  setHiddenMany = (ids: string[], hidden: boolean) =>
+    this.send({ type: 'token.hidden.many', ids, hidden, epoch: this.state.epoch });
+  saveInitiativeDetails = (id: string, hp: string, other: string) =>
+    this.send({ type: 'initiative.details', id, hp, other, epoch: this.state.epoch });
   deleteTokens = (ids: string[]) =>
     this.send({ type: 'delete.many', ids, epoch: this.state.epoch });
   move = (id: string, x: number, y: number, final: boolean) => {
@@ -521,7 +528,7 @@ export class SmalltableClient {
   setLabel = (id: string, label: string) => {
     const parsed = tokenLabel.safeParse(label);
     if (!parsed.success) {
-      this.reportError('棋面文字须为 1–4 个字符，不能含换行或控制字符', 'INVALID_LABEL');
+      this.reportError('棋面文字须为 0–4 个字符，不能含换行或控制字符', 'INVALID_LABEL');
       return false;
     }
     return this.send({ type: 'token.label', id, label: parsed.data, epoch: this.state.epoch });

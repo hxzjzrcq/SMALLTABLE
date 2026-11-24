@@ -366,7 +366,6 @@ export class SmalltableClient {
             room: {
               ...this.state.room,
               revision: event.revision,
-              initiative: this.state.room.initiative.map(({ hp, other, ...entry }) => entry),
               tokens: this.state.room.tokens.map((t) =>
                 t.id === event.id ? { ...t, x: event.x!, y: event.y! } : t,
               ),
@@ -388,7 +387,6 @@ export class SmalltableClient {
             room: {
               ...this.state.room,
               revision: event.revision,
-              initiative: this.state.room.initiative.map(({ hp, other, ...entry }) => entry),
               tokens: this.state.room.tokens.map((t) =>
                 t.id === event.token.id ? event.token : t,
               ),

@@ -311,11 +311,14 @@ test('072 final preview waits for matching ack; old ack/timeouts, later moves an
       secret: 'private',
     };
     room.tokens.push(token);
+    room.initiative.push({ id, name: 'A', value: 10, hp: '5/8', other: 'DM note' });
     const receive = (event: unknown) => socket.onmessage?.({ data: JSON.stringify(event) });
     receive({ type: 'snapshot', room, dm: true, epoch: 0 });
+    const initiative = c.getSnapshot().room!.initiative;
     c.move(id, 10, 20, true);
     const first = c.getSnapshot().pendingMoves[id].moveId;
     receive({ type: 'token', token: { ...token, x: 5, y: 5 }, epoch: 0, revision: 1 });
+    assert.strictEqual(c.getSnapshot().room!.initiative, initiative);
     assert.equal(c.getSnapshot().pendingMoves[id].x, 10, 'broadcast is not acknowledgement');
     t.mock.timers.tick(1000);
     c.move(id, 30, 40, true);
@@ -336,6 +339,21 @@ test('072 final preview waits for matching ack; old ack/timeouts, later moves an
     });
     assert.equal(c.getSnapshot().pendingMoves[id], undefined);
     assert.equal(c.getSnapshot().room!.tokens[0].x, 90, 'later authoritative movement wins');
+    c.move(id, 30, 40, true);
+    const acknowledged = c.getSnapshot().pendingMoves[id].moveId;
+    receive({
+      type: 'move.ack',
+      id,
+      moveId: acknowledged,
+      epoch: 0,
+      revision: 5,
+      ok: true,
+      x: 30,
+      y: 40,
+    });
+    assert.equal(c.getSnapshot().room!.tokens[0].x, 30);
+    assert.strictEqual(c.getSnapshot().room!.initiative, initiative);
+    assert.deepEqual(initiative, room.initiative);
     c.move(id, 100, 200, true);
     t.mock.timers.tick(2000);
     assert.equal(c.getSnapshot().pendingMoves[id], undefined);
